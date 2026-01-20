@@ -70,23 +70,9 @@ public class RocketSystem
         Object.Destroy(r1.GetGameObject());
         Object.Destroy(r2.GetGameObject());
 
-        for (int offset = -1; offset <= 1; offset++)
-        {
-            int targetY = r1.Y + offset;
-            if (targetY >= 0 && targetY < _gridSystem.Height)
-            {
-                SpawnRocketBeams(r1.X, targetY, true, true);
-            }
-        }
-
-        for (int offset = -1; offset <= 1; offset++)
-        {
-            int targetX = r1.X + offset;
-            if (targetX >= 0 && targetX < _gridSystem.Width)
-            {
-                SpawnRocketBeams(targetX, r1.Y, false, true);
-            }
-        }
+        // Standard Cross Blast: Clear 1 Row and 1 Column
+        SpawnRocketBeams(r1.X, r1.Y, true, true);
+        SpawnRocketBeams(r1.X, r1.Y, false, true);
     }
 
     private void SpawnRocketBeams(int x, int y, bool isHorizontal, bool isCombo)
@@ -119,7 +105,9 @@ public class RocketSystem
             }
         }
 
-        projectileObj.transform.localPosition = new Vector3(startX * _cellSize, startY * _cellSize, -1f);
+        // Apply bottom-left origin conversion
+        float worldY = (_gridSystem.Height - 1 - startY) * _cellSize;
+        projectileObj.transform.localPosition = new Vector3(startX * _cellSize, worldY, -1f);
 
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();

@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
     private MatchSystem _matchSystem;
     private GravitySystem _gravitySystem;
     private RocketSystem _rocketSystem;
+    private RocketHintSystem _rocketHintSystem;
     private LevelLoader _levelLoader;
     private LevelData _currentLevel;
 
@@ -61,6 +62,46 @@ public class GameManager : MonoBehaviour
 
     private void InitializeGame()
     {
+        // Find UIManager if not assigned
+        if (_uiManager == null)
+        {
+            _uiManager = FindObjectOfType<UIManager>();
+            if (_uiManager == null)
+            {
+                // Create UIManager if doesn't exist
+                GameObject go = new GameObject("UIManager");
+                _uiManager = go.AddComponent<UIManager>();
+            }
+        }
+
+        // FIX: Hide leftover LevelButton from MainScene if present in LevelScene
+        GameObject levelBtn = GameObject.Find("LevelButton");
+        if (levelBtn != null)
+        {
+            levelBtn.SetActive(false);
+        }
+
+        // FIX: Move Background behind the board (Convert UI Image to World Space Sprite)
+        GameObject bgObj = GameObject.Find("Background");
+        if (bgObj != null && bgObj.GetComponent<UnityEngine.UI.Image>() != null)
+        {
+            // Move out of Canvas to World Space
+            bgObj.transform.SetParent(null);
+            
+            var img = bgObj.GetComponent<UnityEngine.UI.Image>();
+            var sprite = img.sprite;
+            Object.Destroy(img); // Remove Image component
+            
+            var sr = bgObj.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingOrder = -100; // Render behind everything
+            
+            // Center background behind the grid (assuming approx grid size)
+            // Grid is roughly 0 to Width (e.g., 9x9), so center is ~4.5, 4.5
+            bgObj.transform.position = new Vector3(4.5f, 6f, 10f); 
+            bgObj.transform.localScale = new Vector3(2.5f, 2.5f, 1f); // Adjust scale for world space
+        }
+
         if (_boardParent == null)
         {
             Debug.LogError("[GameManager] BoardParent reference is missing!");
@@ -71,6 +112,7 @@ public class GameManager : MonoBehaviour
         _matchSystem = new MatchSystem(_gridSystem);
         _gravitySystem = new GravitySystem(_gridSystem, _cellSize);
         _rocketSystem = new RocketSystem(_gridSystem, _itemFactory, _boardParent, _cellSize, this, OnDamageRequest);
+        _rocketHintSystem = new RocketHintSystem(_gridSystem, _matchSystem, _rocketMatchSize);
         _levelLoader = new LevelLoader(_itemFactory, _boardParent, _cellSize);
 
         // Dynamic Level Loading
@@ -130,6 +172,9 @@ public class GameManager : MonoBehaviour
         _destroyedObstacles = 0;
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
+        
+        // Show initial rocket hints after level loads
+        StartCoroutine(UpdateHintsNextFrame());
     }
 
     private int CountObstaclesInLevel(LevelData data)
@@ -179,12 +224,21 @@ public class GameManager : MonoBehaviour
 
         UseMove();
 
+        // FIX: Ensure each obstacle takes max 1 damage per blast group
+        // Track which obstacles have been damaged to prevent multi-hit from same blast
         var adjacentObstacles = _matchSystem.GetAdjacentObstacles(matches);
+        HashSet<IBoardItem> damagedObstacles = new HashSet<IBoardItem>();
+        
         foreach (var obstacle in adjacentObstacles)
         {
+            // Skip if already damaged in this blast event
+            if (damagedObstacles.Contains(obstacle)) continue;
+            
             if (obstacle is IDamageable damageable)
             {
                 bool destroyed = damageable.TakeDamage(DamageType.MatchBlast);
+                damagedObstacles.Add(obstacle); // Mark as damaged
+                
                 if (destroyed)
                 {
                     _destroyedObstacles++;
@@ -254,8 +308,9 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            
-            go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+            // Apply bottom-left origin conversion
+            float worldY = (_currentLevel.grid_height - 1 - y) * _cellSize;
+            go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
         }
     }
 
@@ -275,6 +330,9 @@ public class GameManager : MonoBehaviour
         _isResolvingGravity = false;
 
         FillEmptySpaces();
+        
+        // Update rocket hints after board settles
+        _rocketHintSystem?.UpdateHints();
     }
 
     private void FillEmptySpaces()
@@ -308,8 +366,9 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            
-            go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+            // Apply bottom-left origin conversion
+            float worldY = (_currentLevel.grid_height - 1 - y) * _cellSize;
+            go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
         }
     }
 
@@ -356,5 +415,11 @@ public class GameManager : MonoBehaviour
         {
             _uiManager.OnLevelLose();
         }
+    }
+    
+    private IEnumerator UpdateHintsNextFrame()
+    {
+        yield return null; // Wait one frame for items to be fully instantiated
+        _rocketHintSystem?.UpdateHints();
     }
 }

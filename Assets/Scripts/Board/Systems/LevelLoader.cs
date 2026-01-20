@@ -62,12 +62,14 @@ public class LevelLoader
                         var root = go.transform.root;
                         bool isRootObj = (go.transform == go.transform.root);
 
-                        go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+                        // FIX: Grid origin is bottom-left (0,0), so invert Y coordinate
+                        // JSON grid array: index 0 = bottom-left, row-major horizontal
+                        float worldY = (data.grid_height - 1 - y) * _cellSize;
+                        go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
 
                         Debug.Log(
-                            $"[LevelLoader] Spawn id={id} at ({x},{y}) " +
-                            $"go={go.name} isRoot={isRootObj} root={root.name} " +
-                            $"setLocal={go.transform.localPosition}"
+                            $"[LevelLoader] Spawn id={id} at grid({x},{y}) world({x * _cellSize},{worldY}) " +
+                            $"go={go.name} isRoot={isRootObj} root={root.name}"
                         );
 
                         if (_boardParent.TryGetComponent<MonoBehaviour>(out var mb))
