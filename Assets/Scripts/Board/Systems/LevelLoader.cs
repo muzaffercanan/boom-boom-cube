@@ -16,6 +16,25 @@ public class LevelLoader
 
     public void LoadLevel(GridSystem gridSystem, LevelData data, Action<int, int> onItemClicked)
     {
+        if (data == null)
+        {
+            Debug.LogError("[LevelLoader] LevelData is NULL");
+            return;
+        }
+
+        if (_boardParent == null)
+        {
+            Debug.LogError("[LevelLoader] BoardParent is NULL");
+            return;
+        }
+
+        if (_cellSize <= 0f)
+        {
+            Debug.LogError($"[LevelLoader] cellSize <= 0 ! cellSize={_cellSize}");
+        }
+
+        BoardDebug.LogBoardParent(_boardParent);
+
         gridSystem.Initialize(data.grid_width, data.grid_height);
 
         int index = 0;
@@ -26,13 +45,40 @@ public class LevelLoader
                 if (index >= data.grid.Count) break;
 
                 string id = data.grid[index];
-                
+
                 var item = _factory.CreateItem(id, _boardParent);
                 if (item != null)
                 {
                     item.Init(onItemClicked);
                     gridSystem.SetItem(x, y, item);
-                    item.GetGameObject().transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+
+                    var go = item.GetGameObject();
+                    if (go == null)
+                    {
+                        Debug.LogError($"[LevelLoader] GetGameObject() returned NULL for id={id} at ({x},{y})");
+                    }
+                    else
+                    {
+                        var root = go.transform.root;
+                        bool isRootObj = (go.transform == go.transform.root);
+
+                        go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+
+                        Debug.Log(
+                            $"[LevelLoader] Spawn id={id} at ({x},{y}) " +
+                            $"go={go.name} isRoot={isRootObj} root={root.name} " +
+                            $"setLocal={go.transform.localPosition}"
+                        );
+
+                        if (_boardParent.TryGetComponent<MonoBehaviour>(out var mb))
+                        {
+                            mb.StartCoroutine(BoardDebug.LogNextFrame($"LevelSpawn id={id} ({x},{y})", go.transform));
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[LevelLoader] CreateItem returned NULL for id={id} at ({x},{y})");
                 }
 
                 index++;

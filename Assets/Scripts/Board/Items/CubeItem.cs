@@ -10,7 +10,6 @@ public class CubeItem : AbstractBoardItem, IMatchable, IFallable
     public void Init(CubeColor color)
     {
         _color = color;
-        // Logic to set sprite based on color would go here or in a View component
     }
 
     public CubeColor GetColor() => _color;
@@ -21,9 +20,6 @@ public class CubeItem : AbstractBoardItem, IMatchable, IFallable
 
     public void FallTo(int targetY, float duration)
     {
-        // Simple tween logic placeholder
-        // Using a coroutine or a Tween library like DOTween is recommended
         SetPosition(X, targetY);
-        // Visuals would handle the smooth movement
     }
 }

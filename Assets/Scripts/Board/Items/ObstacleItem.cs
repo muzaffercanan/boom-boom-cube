@@ -13,7 +13,7 @@ public abstract class ObstacleItem : AbstractBoardItem, IDamageable
         _health--;
         if (_health <= 0)
         {
-            return true; // Destroyed
+            return true;
         }
         UpdateVisuals();
         return false;

@@ -19,7 +19,6 @@ public class LevelButtonController : MonoBehaviour
 
     void LoadLevel()
     {
-        Debug.Log("[LevelButtonController] Butona tıklandı! LevelScene yükleniyor...");
         PlayerPrefs.SetInt("CurrentLevel", levelIndex);
         SceneManager.LoadScene("LevelScene");
     }

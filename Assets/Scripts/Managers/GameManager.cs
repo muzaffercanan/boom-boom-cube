@@ -1,12 +1,17 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
+/// <summary>
+/// Central manager that controls the game flow, level loading, and board resolution.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private ItemFactory _itemFactory;
     [SerializeField] private Transform _boardParent;
     [SerializeField] private float _cellSize = 1.0f;
+    [SerializeField] private UIManager _uiManager;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -18,45 +23,105 @@ public class GameManager : MonoBehaviour
     private GridSystem _gridSystem;
     private MatchSystem _matchSystem;
     private GravitySystem _gravitySystem;
+    private RocketSystem _rocketSystem;
     private LevelLoader _levelLoader;
     private LevelData _currentLevel;
+
+    private bool _isResolvingGravity;
 
     private int _remainingMoves;
     private int _totalObstacles;
     private int _destroyedObstacles;
 
+    /// <summary>
+    /// Current remaining moves for the level.
+    /// </summary>
     public int RemainingMoves => _remainingMoves;
+
+    /// <summary>
+    /// Checks if the game has ended (either won or lost).
+    /// </summary>
     public bool IsGameOver => _remainingMoves <= 0 || IsLevelComplete;
+
+    /// <summary>
+    /// Checks if all level objectives (obstacles) are cleared.
+    /// </summary>
     public bool IsLevelComplete => _destroyedObstacles >= _totalObstacles && _totalObstacles > 0;
 
     private void Start()
     {
+        StartCoroutine(InitNextFrame());
+    }
+
+    private IEnumerator InitNextFrame()
+    {
+        yield return null;
         InitializeGame();
     }
 
     private void InitializeGame()
     {
+        if (_boardParent == null)
+        {
+            Debug.LogError("[GameManager] BoardParent reference is missing!");
+            return;
+        }
+
         _gridSystem = new GridSystem();
         _matchSystem = new MatchSystem(_gridSystem);
-        _gravitySystem = new GravitySystem(_gridSystem);
+        _gravitySystem = new GravitySystem(_gridSystem, _cellSize);
+        _rocketSystem = new RocketSystem(_gridSystem, _itemFactory, _boardParent, _cellSize, this, OnDamageRequest);
         _levelLoader = new LevelLoader(_itemFactory, _boardParent, _cellSize);
 
-        if (_levelJson != null)
+        // Dynamic Level Loading
+        int levelToLoad = PlayerPrefs.GetInt("SelectedLevelForGame", 1);
+        Debug.Log($"[GameManager] Requesting Level {levelToLoad}...");
+
+        // Format level number to "01", "02", ..., "10"
+        string formattedLevelNumber = levelToLoad.ToString("D2"); // D2 ensures 01, 05, 10 format
+
+        // Try Loading from Resources first (Standard for multiple levels)
+        // Adjust path to coincide with user file structure (level_01, level_02...)
+        TextAsset levelAsset = Resources.Load<TextAsset>($"Levels/level_{formattedLevelNumber}"); 
+        
+        // Fallback checks
+        if (levelAsset == null)
         {
+             // Try searching without leading zero just in case (e.g. level_1 fallback)
+             levelAsset = Resources.Load<TextAsset>($"Levels/level_{levelToLoad}");
+        }
+
+        if (levelAsset == null)
+        {
+             // Try root resources with formatted name
+             levelAsset = Resources.Load<TextAsset>($"level_{formattedLevelNumber}");
+        }
+
+        if (levelAsset != null)
+        {
+            LoadLevel(levelAsset.text);
+        }
+        else if (_levelJson != null)
+        {
+            Debug.LogWarning($"[GameManager] Dynamic level file not found for level {levelToLoad}. Using Inspector assigned test level.");
             LoadLevel(_levelJson.text);
         }
         else
         {
-            Debug.LogError("[GameManager] No level JSON assigned!");
+            Debug.LogError($"[GameManager] NO LEVEL FILE FOUND! Resources path 'Levels/level_{levelToLoad}' is missing and no Inspector fallback assigned.");
         }
     }
 
+    /// <summary>
+    /// Loads a level from a JSON string representation.
+    /// </summary>
+    /// <param name="json">The JSON data string of the level.</param>
     public void LoadLevel(string json)
     {
         _currentLevel = JsonUtility.FromJson<LevelData>(json);
         if (_currentLevel == null)
         {
-            Debug.LogError("[GameManager] Failed to parse level JSON!");
+            Debug.LogError("[GameManager] Failed to parse level JSON data!");
             return;
         }
 
@@ -65,8 +130,6 @@ public class GameManager : MonoBehaviour
         _destroyedObstacles = 0;
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
-
-        Debug.Log($"[GameManager] Level {_currentLevel.level_number} loaded. Moves: {_remainingMoves}, Obstacles: {_totalObstacles}");
     }
 
     private int CountObstaclesInLevel(LevelData data)
@@ -93,11 +156,12 @@ public class GameManager : MonoBehaviour
 
         if (item is RocketItem rocket)
         {
-            HandleRocketClick(x, y, rocket);
+            UseMove();
+            _rocketSystem.TryProcessRocketClick(x, y, rocket, out bool isCombo);
             return;
         }
 
-        if (item is IMatchable matchable)
+        if (item is IMatchable)
         {
             HandleCubeClick(x, y);
         }
@@ -129,9 +193,9 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        foreach (var item in matches)
+        foreach (var it in matches)
         {
-            _gridSystem.DestroyItem(item.X, item.Y);
+            _gridSystem.DestroyItem(it.X, it.Y);
         }
 
         if (matches.Count >= _rocketMatchSize)
@@ -139,57 +203,37 @@ public class GameManager : MonoBehaviour
             CreateRocket(x, y);
         }
 
-        _gravitySystem.ApplyGravity();
-        FillEmptySpaces();
-
+        ResolveBoard();
         CheckGameState();
     }
 
-    private void HandleRocketClick(int x, int y, RocketItem rocket)
+    private void OnDamageRequest(Vector2Int pos)
     {
-        UseMove();
+        var item = _gridSystem.GetItem(pos.x, pos.y);
+        if (item == null) return;
 
-        List<Vector2Int> cellsToClear = new List<Vector2Int>();
+        bool destroyed = false;
 
-        if (rocket.IsHorizontal)
+        if (item is IDamageable damageable)
         {
-            for (int i = 0; i < _gridSystem.Width; i++)
+            destroyed = damageable.TakeDamage(DamageType.RocketHit);
+            if (destroyed)
             {
-                cellsToClear.Add(new Vector2Int(i, y));
+                _destroyedObstacles++;
+                _gridSystem.DestroyItem(pos.x, pos.y);
             }
         }
         else
         {
-            for (int i = 0; i < _gridSystem.Height; i++)
-            {
-                cellsToClear.Add(new Vector2Int(x, i));
-            }
+            _gridSystem.DestroyItem(pos.x, pos.y);
+            destroyed = true;
         }
 
-        foreach (var pos in cellsToClear)
+        if (destroyed)
         {
-            var item = _gridSystem.GetItem(pos.x, pos.y);
-            if (item == null) continue;
-
-            if (item is IDamageable damageable)
-            {
-                bool destroyed = damageable.TakeDamage(DamageType.RocketHit);
-                if (destroyed)
-                {
-                    _destroyedObstacles++;
-                    _gridSystem.DestroyItem(pos.x, pos.y);
-                }
-            }
-            else
-            {
-                _gridSystem.DestroyItem(pos.x, pos.y);
-            }
+            ResolveBoard();
+            CheckGameState();
         }
-
-        _gravitySystem.ApplyGravity();
-        FillEmptySpaces();
-
-        CheckGameState();
     }
 
     private void CreateRocket(int x, int y)
@@ -202,34 +246,76 @@ public class GameManager : MonoBehaviour
         {
             rocket.Init(OnItemClicked);
             _gridSystem.SetItem(x, y, rocket);
-            rocket.GetGameObject().transform.localPosition = new Vector3(x, y, 0) * _cellSize;
+
+            var go = rocket.GetGameObject();
+            if (go == null)
+            {
+                Debug.LogError("[GameManager] Rocket GetGameObject() is NULL");
+                return;
+            }
+
+            
+            go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
         }
+    }
+
+    private void ResolveBoard()
+    {
+        if (_isResolvingGravity) return;
+
+        _isResolvingGravity = true;
+
+        bool moved;
+        do
+        {
+            moved = _gravitySystem.ApplyGravity();
+        }
+        while (moved);
+
+        _isResolvingGravity = false;
+
+        FillEmptySpaces();
     }
 
     private void FillEmptySpaces()
     {
+        if (_isResolvingGravity) return;
+
         for (int x = 0; x < _gridSystem.Width; x++)
         {
             for (int y = 0; y < _gridSystem.Height; y++)
             {
                 if (_gridSystem.GetItem(x, y) == null)
                 {
-                    var newItem = _itemFactory.CreateItem("rand", _boardParent);
-                    if (newItem != null)
-                    {
-                        newItem.Init(OnItemClicked);
-                        _gridSystem.SetItem(x, y, newItem);
-                        newItem.GetGameObject().transform.localPosition = new Vector3(x, y, 0) * _cellSize;
-                    }
+                    SpawnItemAt(x, y);
                 }
             }
+        }
+    }
+
+    private void SpawnItemAt(int x, int y)
+    {
+        var newItem = _itemFactory.CreateItem("rand", _boardParent);
+        if (newItem != null)
+        {
+            newItem.Init(OnItemClicked);
+            _gridSystem.SetItem(x, y, newItem);
+
+            var go = newItem.GetGameObject();
+            if (go == null)
+            {
+                Debug.LogError($"[GameManager] Spawn GetGameObject() is NULL at ({x},{y})");
+                return;
+            }
+
+            
+            go.transform.localPosition = new Vector3(x, y, 0) * _cellSize;
         }
     }
 
     private void UseMove()
     {
         _remainingMoves--;
-        Debug.Log($"[GameManager] Move used. Remaining: {_remainingMoves}");
     }
 
     private void CheckGameState()
@@ -248,11 +334,27 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelWin()
     {
-        // TODO: Show win popup, particles, etc.
+        // Save progress (Unlock next level)
+        int completedLevel = _currentLevel.level_number;
+        int savedLevel = PlayerPrefs.GetInt("LastPlayedLevel", 1);
+        
+        if (completedLevel >= savedLevel)
+        {
+            PlayerPrefs.SetInt("LastPlayedLevel", completedLevel + 1);
+            PlayerPrefs.Save();
+        }
+
+        if (_uiManager != null)
+        {
+            _uiManager.OnLevelWin();
+        }
     }
 
     private void OnLevelLose()
     {
-        // TODO: Show lose popup
+        if (_uiManager != null)
+        {
+            _uiManager.OnLevelLose();
+        }
     }
 }

@@ -31,3 +31,11 @@ MonoBehaviour:
     prefab: {fileID: 8186768783302378662, guid: 0771a3ea28d224b4fbf9f8b458511305, type: 3}
   - id: v
     prefab: {fileID: 7059840549804864187, guid: 4ac25f8f0aa833441b373cc9060f2b32, type: 3}
+  - id: rocket_h_part_left
+    prefab: {fileID: 4332063229213815157, guid: 1574cca12a5b9ed4fb8cdd9c12c661c1, type: 3}
+  - id: rocket_v_part_top
+    prefab: {fileID: 1793737764282592867, guid: 0427240167536204a8664c78b007f72d, type: 3}
+  - id: rocket_v_part_bottom
+    prefab: {fileID: 3530580351125447187, guid: 30e2115157a078e4383c941bc9977c8f, type: 3}
+  - id: rocket_h_part_right
+    prefab: {fileID: 3951418157652007565, guid: 53dc49c59db024845bf480bb85c79b8b, type: 3}

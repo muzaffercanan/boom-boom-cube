@@ -31,6 +31,14 @@ public class ItemFactory : ScriptableObject
         return match.prefab;
     }
 
+    public GameObject CreateVisual(string id, Transform parent)
+    {
+        GameObject prefab = GetPrefab(id);
+        if (prefab == null) return null;
+
+        return Instantiate(prefab, parent);
+    }
+
     public IBoardItem CreateItem(string id, Transform parent)
     {
         if (id == "rand")
