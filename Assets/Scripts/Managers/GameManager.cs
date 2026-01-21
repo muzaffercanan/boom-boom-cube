@@ -104,7 +104,6 @@ public class GameManager : MonoBehaviour
         int levelToLoad = PlayerPrefs.GetInt("SelectedLevelForGame", 1);
         Debug.Log($"[GameManager] Requesting Level {levelToLoad}...");
 
-        // Format level number to "01", "02", ..., "10"
         string formattedLevelNumber = levelToLoad.ToString("D2"); // D2 ensures 01, 05, 10 format
 
         // Try Loading from Resources first (Standard for multiple levels)
@@ -139,62 +138,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // SetupBackground() REMOVED - Background should be configured in the scene:
-    // 1. Create a GameObject named "Background" OUTSIDE of Canvas (in world space)
-    // 2. Add SpriteRenderer component and assign your background sprite
-    // 3. Set Sorting Order to -100 (or lower)
-    // 4. Assign the SpriteRenderer to GameManager._backgroundRenderer in Inspector
-
-    private void PositionBoardAndBackground()
-    {
-        // Get camera reference
-        Camera mainCam = Camera.main;
-        if (mainCam == null)
-        {
-            Debug.LogError("[GameManager] Main Camera not found!");
-            return;
-        }
-
-        // Calculate board dimensions
-        float boardWidth = _currentLevel.grid_width * _cellSize;
-        float boardHeight = _currentLevel.grid_height * _cellSize;
-
-        // Get camera bounds in world space
-        float cameraHeight = mainCam.orthographicSize * 2f;
-        float cameraWidth = cameraHeight * mainCam.aspect;
-
-        // Center the board horizontally
-        // Board starts at 0,0 so we need to offset by half width to center
-        float boardCenterX = -boardWidth / 2f;
-        
-        // Position board slightly below center (about 60% down from top)
-        // This leaves room for UI at top
-        float boardCenterY = -(cameraHeight * 0.1f); // Slightly below center
-        
-        _boardParent.position = new Vector3(boardCenterX, boardCenterY, 0f);
-
-        // Position and scale background using the serialized reference
-        if (_backgroundRenderer != null && _backgroundRenderer.sprite != null)
-        {
-            // Calculate scale to fill camera view
-            float bgWidth = _backgroundRenderer.sprite.bounds.size.x;
-            float bgHeight = _backgroundRenderer.sprite.bounds.size.y;
-            
-            float scaleX = cameraWidth / bgWidth;
-            float scaleY = cameraHeight / bgHeight;
-            float scale = Mathf.Max(scaleX, scaleY); // Fill screen
-            
-            _backgroundRenderer.transform.localScale = new Vector3(scale, scale, 1f);
-            _backgroundRenderer.transform.position = new Vector3(0f, 0f, 10f); // Behind everything
-        }
-        else if (_backgroundRenderer == null)
-        {
-            Debug.LogWarning("[GameManager] _backgroundRenderer is not assigned in Inspector!");
-        }
-
-        Debug.Log($"[GameManager] Board positioned at {_boardParent.position}, Camera size: {cameraWidth}x{cameraHeight}");
-    }
-
     /// <summary>
     /// Loads a level from a JSON string representation.
     /// </summary>
@@ -215,10 +158,7 @@ public class GameManager : MonoBehaviour
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
         // Create Grid Background fit to level size
-        CreateGridBackground();
-
-        // Position board and background based on camera viewport
-        PositionBoardAndBackground();
+        //CreateGridBackground();
 
         // Show initial rocket hints after level loads
         StartCoroutine(UpdateHintsNextFrame());
