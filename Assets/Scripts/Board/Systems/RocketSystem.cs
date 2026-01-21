@@ -64,36 +64,54 @@ public class RocketSystem
 
     private void ProcessRocketCombo(RocketItem r1, RocketItem r2)
     {
+        // 1. Remove the items from the grid and destroy visuals
         _gridSystem.SetItem(r1.X, r1.Y, null);
         _gridSystem.SetItem(r2.X, r2.Y, null);
         
         Object.Destroy(r1.GetGameObject());
         Object.Destroy(r2.GetGameObject());
 
-        // 3x3 Grid Combo: Each cell in 3x3 area spawns both horizontal and vertical rockets
-        // Center is the clicked rocket (r1)
+        // Use the first rocket's position as the center of the combo
         int centerX = r1.X;
         int centerY = r1.Y;
-        
-        // Iterate through 3x3 grid (x-1 to x+1, y-1 to y+1)
+
+        // 2. Directly damage/clear the central 3x3 area
+        // (Since projectiles move outwards and might skip their spawn cell)
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                int cellX = centerX + dx;
-                int cellY = centerY + dy;
+                int x = centerX + dx;
+                int y = centerY + dy;
                 
-                // Check if cell is valid
-                if (!_gridSystem.IsValid(cellX, cellY))
-                    continue;
-                
-                // Spawn horizontal rockets (left + right) from this cell
-                SpawnProjectile("rocket_h_part_left", cellX, cellY, Vector2.left);
-                SpawnProjectile("rocket_h_part_right", cellX, cellY, Vector2.right);
-                
-                // Spawn vertical rockets (up + down) from this cell
-                SpawnProjectile("rocket_v_part_top", cellX, cellY, Vector2.up);
-                SpawnProjectile("rocket_v_part_bottom", cellX, cellY, Vector2.down);
+                if (_gridSystem.IsValid(x, y))
+                {
+                   _onDamageRequest?.Invoke(new Vector2Int(x, y));
+                }
+            }
+        }
+
+        // 3. Spawn 3 Rows of Horizontal Rockets (Lines: y-1, y, y+1)
+        for (int offset = -1; offset <= 1; offset++)
+        {
+            int rowY = centerY + offset;
+            // Only spawn if the row is within grid bounds
+            if (rowY >= 0 && rowY < _gridSystem.Height)
+            {
+                // Spawn Horizontal Beams starting from centerX
+                SpawnRocketBeams(centerX, rowY, isHorizontal: true, isCombo: true);
+            }
+        }
+
+        // 4. Spawn 3 Columns of Vertical Rockets (Lines: x-1, x, x+1)
+        for (int offset = -1; offset <= 1; offset++)
+        {
+            int colX = centerX + offset;
+            // Only spawn if the column is within grid bounds
+            if (colX >= 0 && colX < _gridSystem.Width)
+            {
+                // Spawn Vertical Beams starting from centerY
+                SpawnRocketBeams(colX, centerY, isHorizontal: false, isCombo: true);
             }
         }
     }

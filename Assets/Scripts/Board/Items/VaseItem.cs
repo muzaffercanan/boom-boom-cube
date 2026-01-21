@@ -4,8 +4,6 @@ public class VaseItem : ObstacleItem, IFallable
 {
     public bool CanFall() => true;
 
-
-
     public override bool TakeDamage(DamageType type)
     {
         return base.TakeDamage(type);

@@ -25,28 +25,17 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
 
     public virtual void FallTo(int targetY, float duration)
     {
-        // Update logical coordinate
         SetPosition(X, targetY);
         
-        // Use the MoveToPosition system for visuals if active
         if (gameObject.activeInHierarchy)
         {
-            // We need to calculate target position here if FallTo is called directly
-            // However, usually GravitySystem calls MoveToPosition directly now.
-            // But to satisfy IFallable interface robustly:
             MoveToPosition(new Vector3(X * 1.0f, targetY * 1.0f, 0f), duration); 
-            // Note: 1.0f is assumed cell size if not provided. 
-            // Better to rely on GravitySystem's new logic, but this prevents errors.
         }
     }
     
-    // REVISING STRATEGY: 
-    // I will implement "MoveToPosition(Vector3 targetPos, float duration)" in AbstractBoardItem
-    // GravitySystem will call this.
-    
     public void MoveToPosition(Vector3 targetLocalPos, float duration)
     {
-        StopAllCoroutines(); // Stop any previous fall
+        StopAllCoroutines();
         StartCoroutine(AnimateMove(targetLocalPos, duration));
     }
 
