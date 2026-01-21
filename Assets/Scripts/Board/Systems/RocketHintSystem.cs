@@ -142,15 +142,25 @@ public class RocketHintSystem
     {
         foreach (var item in _currentHintedItems)
         {
-            if (item == null) continue;
+            // Check if C# reference is null OR Unity Object is destroyed (magic null check)
+            if (item == null || (item is Object unityObj && unityObj == null)) 
+                continue;
             
-            var gameObject = item.GetGameObject();
-            if (gameObject == null) continue;
-            
-            var hintTransform = gameObject.transform.Find("RocketHint");
-            if (hintTransform != null)
+            try
             {
-                hintTransform.gameObject.SetActive(false);
+                var gameObject = item.GetGameObject();
+                if (gameObject == null) continue;
+                
+                var hintTransform = gameObject.transform.Find("RocketHint");
+                if (hintTransform != null)
+                {
+                    hintTransform.gameObject.SetActive(false);
+                }
+            }
+            catch (System.Exception) 
+            {
+                // Item might be in the process of being destroyed
+                continue;
             }
         }
         
@@ -164,15 +174,23 @@ public class RocketHintSystem
     {
         foreach (var item in _currentHintedItems)
         {
-            if (item == null) continue;
+            if (item == null || (item is Object unityObj && unityObj == null)) 
+                continue;
             
-            var gameObject = item.GetGameObject();
-            if (gameObject == null) continue;
-            
-            var hintTransform = gameObject.transform.Find("RocketHint");
-            if (hintTransform != null)
+            try
             {
-                Object.Destroy(hintTransform.gameObject);
+                var gameObject = item.GetGameObject();
+                if (gameObject == null) continue;
+                
+                var hintTransform = gameObject.transform.Find("RocketHint");
+                if (hintTransform != null)
+                {
+                    Object.Destroy(hintTransform.gameObject);
+                }
+            }
+            catch (System.Exception) 
+            {
+                continue; 
             }
         }
         

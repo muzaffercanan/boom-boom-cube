@@ -13,8 +13,5 @@ public class RocketItem : AbstractBoardItem, IFallable
 
     public bool CanFall() => true;
 
-    public void FallTo(int targetY, float duration)
-    {
-        SetPosition(X, targetY);
-    }
+
 }

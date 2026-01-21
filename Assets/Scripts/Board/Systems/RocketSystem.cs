@@ -105,8 +105,8 @@ public class RocketSystem
             }
         }
 
-        // Apply bottom-left origin conversion
-        float worldY = (_gridSystem.Height - 1 - startY) * _cellSize;
+        // Apply bottom-left origin conversion (Standard Cartesian)
+        float worldY = startY * _cellSize;
         projectileObj.transform.localPosition = new Vector3(startX * _cellSize, worldY, -1f);
 
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();

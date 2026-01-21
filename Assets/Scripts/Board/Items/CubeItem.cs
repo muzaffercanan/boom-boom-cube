@@ -18,8 +18,5 @@ public class CubeItem : AbstractBoardItem, IMatchable, IFallable
 
     public bool CanFall() => true;
 
-    public void FallTo(int targetY, float duration)
-    {
-        SetPosition(X, targetY);
-    }
+
 }
