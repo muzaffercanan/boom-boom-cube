@@ -81,26 +81,8 @@ public class GameManager : MonoBehaviour
             levelBtn.SetActive(false);
         }
 
-        // FIX: Move Background behind the board (Convert UI Image to World Space Sprite)
-        GameObject bgObj = GameObject.Find("Background");
-        if (bgObj != null && bgObj.GetComponent<UnityEngine.UI.Image>() != null)
-        {
-            // Move out of Canvas to World Space
-            bgObj.transform.SetParent(null);
-            
-            var img = bgObj.GetComponent<UnityEngine.UI.Image>();
-            var sprite = img.sprite;
-            Object.Destroy(img); // Remove Image component
-            
-            var sr = bgObj.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.sortingOrder = -100; // Render behind everything
-            
-            // Center background behind the grid (assuming approx grid size)
-            // Grid is roughly 0 to Width (e.g., 9x9), so center is ~4.5, 4.5
-            bgObj.transform.position = new Vector3(4.5f, 6f, 10f); 
-            bgObj.transform.localScale = new Vector3(2.5f, 2.5f, 1f); // Adjust scale for world space
-        }
+        // Setup Background - will be positioned after level loads
+        SetupBackground();
 
         if (_boardParent == null)
         {
@@ -154,6 +136,76 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void SetupBackground()
+    {
+        // FIX: Move Background behind the board (Convert UI Image to World Space Sprite)
+        GameObject bgObj = GameObject.Find("Background");
+        if (bgObj != null && bgObj.GetComponent<UnityEngine.UI.Image>() != null)
+        {
+            // Move out of Canvas to World Space
+            bgObj.transform.SetParent(null);
+            
+            var img = bgObj.GetComponent<UnityEngine.UI.Image>();
+            var sprite = img.sprite;
+            Object.Destroy(img); // Remove Image component
+            
+            var sr = bgObj.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingOrder = -100; // Render behind everything
+        }
+    }
+
+    private void PositionBoardAndBackground()
+    {
+        // Get camera reference
+        Camera mainCam = Camera.main;
+        if (mainCam == null)
+        {
+            Debug.LogError("[GameManager] Main Camera not found!");
+            return;
+        }
+
+        // Calculate board dimensions
+        float boardWidth = _currentLevel.grid_width * _cellSize;
+        float boardHeight = _currentLevel.grid_height * _cellSize;
+
+        // Get camera bounds in world space
+        float cameraHeight = mainCam.orthographicSize * 2f;
+        float cameraWidth = cameraHeight * mainCam.aspect;
+
+        // Center the board horizontally
+        // Board starts at 0,0 so we need to offset by half width to center
+        float boardCenterX = -boardWidth / 2f;
+        
+        // Position board slightly below center (about 60% down from top)
+        // This leaves room for UI at top
+        float boardCenterY = -(cameraHeight * 0.1f); // Slightly below center
+        
+        _boardParent.position = new Vector3(boardCenterX, boardCenterY, 0f);
+
+        // Position and scale background
+        GameObject bgObj = GameObject.Find("Background");
+        if (bgObj != null)
+        {
+            var sr = bgObj.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                // Calculate scale to fill camera view
+                float bgWidth = sr.sprite.bounds.size.x;
+                float bgHeight = sr.sprite.bounds.size.y;
+                
+                float scaleX = cameraWidth / bgWidth;
+                float scaleY = cameraHeight / bgHeight;
+                float scale = Mathf.Max(scaleX, scaleY); // Fill screen
+                
+                bgObj.transform.localScale = new Vector3(scale, scale, 1f);
+                bgObj.transform.position = new Vector3(0f, 0f, 10f); // Behind everything
+            }
+        }
+
+        Debug.Log($"[GameManager] Board positioned at {_boardParent.position}, Camera size: {cameraWidth}x{cameraHeight}");
+    }
+
     /// <summary>
     /// Loads a level from a JSON string representation.
     /// </summary>
@@ -175,6 +227,9 @@ public class GameManager : MonoBehaviour
         
         // Create Grid Background fit to level size
         CreateGridBackground();
+
+        // Position board and background based on camera viewport
+        PositionBoardAndBackground();
 
         // Show initial rocket hints after level loads
         StartCoroutine(UpdateHintsNextFrame());
