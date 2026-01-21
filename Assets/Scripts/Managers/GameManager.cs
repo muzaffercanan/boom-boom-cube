@@ -10,11 +10,10 @@ public class GameManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private ItemFactory _itemFactory;
     [SerializeField] private Transform _boardParent;
-    [SerializeField] private float _cellSize = 1.0f;
+    [SerializeField] private float _cellSize = 1.0f; 
     [SerializeField] private UIManager _uiManager;
     
     [Tooltip("Assign the Background SpriteRenderer from the scene. Must NOT be inside Canvas.")]
-    [SerializeField] private SpriteRenderer _backgroundRenderer;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -83,9 +82,6 @@ public class GameManager : MonoBehaviour
         {
             levelBtn.SetActive(false);
         }
-
-        // Background is now set up in the scene directly (not via runtime component swap)
-        // Ensure _backgroundRenderer is assigned in Inspector
 
         if (_boardParent == null)
         {
@@ -157,9 +153,6 @@ public class GameManager : MonoBehaviour
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
-        // Create Grid Background fit to level size
-        //CreateGridBackground();
-
         // Show initial rocket hints after level loads
         StartCoroutine(UpdateHintsNextFrame());
     }
@@ -480,39 +473,4 @@ public class GameManager : MonoBehaviour
         _rocketHintSystem?.UpdateHints();
     }
 
-    private void CreateGridBackground()
-    {
-        var gridBgSprite = Resources.Load<Sprite>("UI/Gameplay/grid_background");
-        if (gridBgSprite == null)
-        {
-            Debug.LogWarning("[GameManager] Could not load grid_background sprite from Resources/UI/Gameplay/");
-            return;
-        }
-
-        GameObject frameObj = new GameObject("GridFrame");
-        var sr = frameObj.AddComponent<SpriteRenderer>();
-        sr.sprite = gridBgSprite;
-        
-        // Try to enable sliced mode if sprite supports it, otherwise plain
-        try { sr.drawMode = SpriteDrawMode.Sliced; } catch {}
-
-        sr.sortingOrder = -50; 
-
-        // Size: Grid Width/Height + padding
-        // User wants "thin" border. 0.15f padding is much thinner than 0.5f.
-        float padding = 0.15f; 
-        float width = _currentLevel.grid_width * _cellSize + padding;
-        float height = _currentLevel.grid_height * _cellSize + padding;
-        sr.size = new Vector2(width, height);
-
-        // Center
-        float centerX = (_currentLevel.grid_width - 1) * _cellSize / 2f;
-        float centerY = (_currentLevel.grid_height - 1) * _cellSize / 2f;
-        
-        // Adjust Y based on origin fix (Height relative)
-        // Since we draw from 0,0 to W,H in world space now (thanks to bottom-left fix)
-        // Center is just W/2, H/2
-        
-        frameObj.transform.position = new Vector3(centerX, centerY, 5f);
-    }
 }
