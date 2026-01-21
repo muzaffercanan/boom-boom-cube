@@ -11,8 +11,12 @@ public class RocketProjectile : MonoBehaviour
     
     private int _lastVisitedX = -1;
     private int _lastVisitedY = -1;
+    
+    private int _startX;
+    private int _startY;
+    private int _maxRange = -1; // -1 means unlimited, otherwise max cells to travel
 
-    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit)
+    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, int maxRange = -1)
     {
         _direction = direction;
         _cellSize = cellSize;
@@ -20,8 +24,14 @@ public class RocketProjectile : MonoBehaviour
         _onCellHit = onCellHit;
         _speed = 15f; 
 
+        _startX = startX;
+        _startY = startY;
+        
+        // Start from rocket position (don't hit it again, rocket already destroyed)
         _lastVisitedX = startX;
         _lastVisitedY = startY;
+        
+        _maxRange = maxRange;
 
         // Create fire particle effect
         CreateFireParticles();
@@ -108,17 +118,55 @@ public class RocketProjectile : MonoBehaviour
         int currentX = Mathf.RoundToInt(localPos.x / _cellSize);
         int currentY = Mathf.RoundToInt(localPos.y / _cellSize);
 
+        // Check if exceeded max range
+        if (_maxRange > 0)
+        {
+            // Calculate distance from start (excluding start cell itself)
+            int distanceTraveled = Mathf.Abs(currentX - _startX) + Mathf.Abs(currentY - _startY);
+            
+            // Destroy if we've gone beyond max range
+            if (distanceTraveled > _maxRange)
+            {
+                Destroy(gameObject);
+                return;
+            }
+        }
+
         if (currentX != _lastVisitedX || currentY != _lastVisitedY)
         {
-            if (_gridSystem.IsValid(currentX, currentY))
+            // Hit all cells between last and current position (in case we skipped some)
+            HitCellsInPath(_lastVisitedX, _lastVisitedY, currentX, currentY);
+            
+            _lastVisitedX = currentX;
+            _lastVisitedY = currentY;
+        }
+    }
+
+    private void HitCellsInPath(int fromX, int fromY, int toX, int toY)
+    {
+        // Calculate direction of movement
+        int stepX = toX > fromX ? 1 : (toX < fromX ? -1 : 0);
+        int stepY = toY > fromY ? 1 : (toY < fromY ? -1 : 0);
+        
+        int x = fromX;
+        int y = fromY;
+        
+        // Hit all cells from start to end
+        while (x != toX || y != toY)
+        {
+            // Move one step
+            if (x != toX) x += stepX;
+            if (y != toY) y += stepY;
+            
+            if (_gridSystem.IsValid(x, y))
             {
-                _lastVisitedX = currentX;
-                _lastVisitedY = currentY;
-                _onCellHit?.Invoke(currentX, currentY);
+                _onCellHit?.Invoke(x, y);
             }
             else
             {
+                // Out of bounds, destroy projectile
                 Destroy(gameObject);
+                return;
             }
         }
     }

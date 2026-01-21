@@ -70,26 +70,49 @@ public class RocketSystem
         Object.Destroy(r1.GetGameObject());
         Object.Destroy(r2.GetGameObject());
 
-        // Standard Cross Blast: Clear 1 Row and 1 Column
-        SpawnRocketBeams(r1.X, r1.Y, true, true);
-        SpawnRocketBeams(r1.X, r1.Y, false, true);
+        // 3x3 Grid Combo: Each cell in 3x3 area spawns both horizontal and vertical rockets
+        // Center is the clicked rocket (r1)
+        int centerX = r1.X;
+        int centerY = r1.Y;
+        
+        // Iterate through 3x3 grid (x-1 to x+1, y-1 to y+1)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                int cellX = centerX + dx;
+                int cellY = centerY + dy;
+                
+                // Check if cell is valid
+                if (!_gridSystem.IsValid(cellX, cellY))
+                    continue;
+                
+                // Spawn horizontal rockets (left + right) from this cell
+                SpawnProjectile("rocket_h_part_left", cellX, cellY, Vector2.left);
+                SpawnProjectile("rocket_h_part_right", cellX, cellY, Vector2.right);
+                
+                // Spawn vertical rockets (up + down) from this cell
+                SpawnProjectile("rocket_v_part_top", cellX, cellY, Vector2.up);
+                SpawnProjectile("rocket_v_part_bottom", cellX, cellY, Vector2.down);
+            }
+        }
     }
 
-    private void SpawnRocketBeams(int x, int y, bool isHorizontal, bool isCombo)
+    private void SpawnRocketBeams(int x, int y, bool isHorizontal, bool isCombo, int maxRange = -1)
     {
         if (isHorizontal)
         {
-            SpawnProjectile("rocket_h_part_left", x, y, Vector2.left);
-            SpawnProjectile("rocket_h_part_right", x, y, Vector2.right);
+            SpawnProjectile("rocket_h_part_left", x, y, Vector2.left, maxRange);
+            SpawnProjectile("rocket_h_part_right", x, y, Vector2.right, maxRange);
         }
         else
         {
-            SpawnProjectile("rocket_v_part_bottom", x, y, Vector2.down);
-            SpawnProjectile("rocket_v_part_top", x, y, Vector2.up);
+            SpawnProjectile("rocket_v_part_bottom", x, y, Vector2.down, maxRange);
+            SpawnProjectile("rocket_v_part_top", x, y, Vector2.up, maxRange);
         }
     }
 
-    private void SpawnProjectile(string prefabId, int startX, int startY, Vector2 direction)
+    private void SpawnProjectile(string prefabId, int startX, int startY, Vector2 direction, int maxRange = -1)
     {
         GameObject projectileObj = _itemFactory.CreateVisual(prefabId, _boardParent); 
         
@@ -112,7 +135,7 @@ public class RocketSystem
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();
 
-        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell);
+        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, maxRange);
     }
 
     private void OnProjectileHitCell(int x, int y)
