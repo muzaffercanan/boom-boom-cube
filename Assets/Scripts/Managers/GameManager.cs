@@ -12,6 +12,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Transform _boardParent;
     [SerializeField] private float _cellSize = 1.0f;
     [SerializeField] private UIManager _uiManager;
+    
+    [Tooltip("Assign the Background SpriteRenderer from the scene. Must NOT be inside Canvas.")]
+    [SerializeField] private SpriteRenderer _backgroundRenderer;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -81,8 +84,8 @@ public class GameManager : MonoBehaviour
             levelBtn.SetActive(false);
         }
 
-        // Setup Background - will be positioned after level loads
-        SetupBackground();
+        // Background is now set up in the scene directly (not via runtime component swap)
+        // Ensure _backgroundRenderer is assigned in Inspector
 
         if (_boardParent == null)
         {
@@ -136,24 +139,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void SetupBackground()
-    {
-        // FIX: Move Background behind the board (Convert UI Image to World Space Sprite)
-        GameObject bgObj = GameObject.Find("Background");
-        if (bgObj != null && bgObj.GetComponent<UnityEngine.UI.Image>() != null)
-        {
-            // Move out of Canvas to World Space
-            bgObj.transform.SetParent(null);
-            
-            var img = bgObj.GetComponent<UnityEngine.UI.Image>();
-            var sprite = img.sprite;
-            Object.Destroy(img); // Remove Image component
-            
-            var sr = bgObj.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.sortingOrder = -100; // Render behind everything
-        }
-    }
+    // SetupBackground() REMOVED - Background should be configured in the scene:
+    // 1. Create a GameObject named "Background" OUTSIDE of Canvas (in world space)
+    // 2. Add SpriteRenderer component and assign your background sprite
+    // 3. Set Sorting Order to -100 (or lower)
+    // 4. Assign the SpriteRenderer to GameManager._backgroundRenderer in Inspector
 
     private void PositionBoardAndBackground()
     {
@@ -183,24 +173,23 @@ public class GameManager : MonoBehaviour
         
         _boardParent.position = new Vector3(boardCenterX, boardCenterY, 0f);
 
-        // Position and scale background
-        GameObject bgObj = GameObject.Find("Background");
-        if (bgObj != null)
+        // Position and scale background using the serialized reference
+        if (_backgroundRenderer != null && _backgroundRenderer.sprite != null)
         {
-            var sr = bgObj.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                // Calculate scale to fill camera view
-                float bgWidth = sr.sprite.bounds.size.x;
-                float bgHeight = sr.sprite.bounds.size.y;
-                
-                float scaleX = cameraWidth / bgWidth;
-                float scaleY = cameraHeight / bgHeight;
-                float scale = Mathf.Max(scaleX, scaleY); // Fill screen
-                
-                bgObj.transform.localScale = new Vector3(scale, scale, 1f);
-                bgObj.transform.position = new Vector3(0f, 0f, 10f); // Behind everything
-            }
+            // Calculate scale to fill camera view
+            float bgWidth = _backgroundRenderer.sprite.bounds.size.x;
+            float bgHeight = _backgroundRenderer.sprite.bounds.size.y;
+            
+            float scaleX = cameraWidth / bgWidth;
+            float scaleY = cameraHeight / bgHeight;
+            float scale = Mathf.Max(scaleX, scaleY); // Fill screen
+            
+            _backgroundRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+            _backgroundRenderer.transform.position = new Vector3(0f, 0f, 10f); // Behind everything
+        }
+        else if (_backgroundRenderer == null)
+        {
+            Debug.LogWarning("[GameManager] _backgroundRenderer is not assigned in Inspector!");
         }
 
         Debug.Log($"[GameManager] Board positioned at {_boardParent.position}, Camera size: {cameraWidth}x{cameraHeight}");
