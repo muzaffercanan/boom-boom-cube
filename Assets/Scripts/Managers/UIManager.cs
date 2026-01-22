@@ -11,8 +11,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject _gameHUD; // Moves, Grid background etc.
 
     [Header("HUD Text")]
-    [SerializeField] private TMP_Text _movesText;
-    [SerializeField] private TMP_Text _goalText;
+    [SerializeField] private TMP_Text _moves;
+    [SerializeField] private TMP_Text _goals;
 
     [Header("Win UI")]
     [SerializeField] private Button _winMainMenuButton;
@@ -60,10 +60,6 @@ public class UIManager : MonoBehaviour
                 scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
                 scaler.matchWidthOrHeight = 0.5f; // Balance between width and height
             }
-
-            // Create placeholder text if not assigned
-            if (_movesText == null) _movesText = CreateText(canvas.transform, "MovesText", "Moves: 0", new Vector2(0, 800));
-            if (_goalText == null) _goalText = CreateText(canvas.transform, "GoalText", "Goals: 0", new Vector2(0, 700));
         }
     }
 
@@ -86,8 +82,8 @@ public class UIManager : MonoBehaviour
 
     public void UpdateHUD(int moves, int goalsRemaining)
     {
-        if (_movesText != null) _movesText.text = $"Moves: {moves}";
-        if (_goalText != null) _goalText.text = $"Goals: {goalsRemaining}";
+        if (_moves != null) _moves.text = $"{moves}";
+        if (_goals != null) _goals.text = $"{goalsRemaining}";
     }
 
     private void CreateWinPanel()
