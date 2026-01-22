@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 public class UIManager : MonoBehaviour
 {
@@ -8,6 +9,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject _winPanel;
     [SerializeField] private GameObject _losePanel;
     [SerializeField] private GameObject _gameHUD; // Moves, Grid background etc.
+
+    [Header("HUD Text")]
+    [SerializeField] private TMP_Text _movesText;
+    [SerializeField] private TMP_Text _goalText;
 
     [Header("Win UI")]
     [SerializeField] private Button _winMainMenuButton;
@@ -55,7 +60,34 @@ public class UIManager : MonoBehaviour
                 scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
                 scaler.matchWidthOrHeight = 0.5f; // Balance between width and height
             }
+
+            // Create placeholder text if not assigned
+            if (_movesText == null) _movesText = CreateText(canvas.transform, "MovesText", "Moves: 0", new Vector2(0, 800));
+            if (_goalText == null) _goalText = CreateText(canvas.transform, "GoalText", "Goals: 0", new Vector2(0, 700));
         }
+    }
+
+    private TMP_Text CreateText(Transform parent, string name, string initialValue, Vector2 pos)
+    {
+        GameObject obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        var text = obj.AddComponent<TextMeshProUGUI>();
+        text.text = initialValue;
+        text.fontSize = 60;
+        text.alignment = TextAlignmentOptions.Center;
+        text.color = Color.white;
+        
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(400, 100);
+        rect.anchoredPosition = pos;
+        
+        return text;
+    }
+
+    public void UpdateHUD(int moves, int goalsRemaining)
+    {
+        if (_movesText != null) _movesText.text = $"Moves: {moves}";
+        if (_goalText != null) _goalText.text = $"Goals: {goalsRemaining}";
     }
 
     private void CreateWinPanel()

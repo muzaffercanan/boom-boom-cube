@@ -15,8 +15,10 @@ public class VaseItem : ObstacleItem, IFallable
         var spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer != null && _health == 1)
         {
-            // Try to load the damaged vase sprite
-            var damagedSprite = UnityEngine.Resources.Load<Sprite>("Obstacles/Vase/vase_02");
+            Sprite damagedSprite = null;
+#if UNITY_EDITOR
+            damagedSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Obstacles/Vase/vase_02.png");
+#endif
             if (damagedSprite != null)
             {
                 spriteRenderer.sprite = damagedSprite;

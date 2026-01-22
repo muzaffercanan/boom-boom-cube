@@ -96,9 +96,13 @@ public class RocketHintSystem
         // Add sprite renderer
         var spriteRenderer = hintObject.AddComponent<SpriteRenderer>();
         
-        // Load appropriate rocket hint sprite based on cube color
-        string spritePath = GetRocketHintSpritePath(cube.GetColor());
-        var hintSprite = Resources.Load<Sprite>(spritePath);
+        // Load rocket hint sprite directly from project folder (No Resources)
+        Sprite hintSprite = null;
+#if UNITY_EDITOR
+        string spriteName = GetRocketHintSpriteName(cube.GetColor());
+        string assetPath = $"Assets/Cubes/RocketState/{spriteName}.png";
+        hintSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+#endif
         
         if (hintSprite != null)
         {
@@ -108,7 +112,7 @@ public class RocketHintSystem
         else
         {
             // Fallback: use a simple overlay
-            Debug.LogWarning($"[RocketHintSystem] Could not load sprite: {spritePath}");
+            Debug.LogWarning($"[RocketHintSystem] Hint sprite not found at path for color: {cube.GetColor()}");
             spriteRenderer.color = new Color(1f, 1f, 1f, 0.5f); // Semi-transparent white
         }
         
@@ -116,25 +120,20 @@ public class RocketHintSystem
     }
     
     /// <summary>
-    /// Gets the sprite path for rocket hint based on cube color.
+    /// Gets the sprite name for rocket hint based on cube color.
     /// </summary>
-    private string GetRocketHintSpritePath(CubeColor color)
+    private string GetRocketHintSpriteName(CubeColor color)
     {
         switch (color)
         {
-            case CubeColor.Red:
-                return "Cubes/RocketState/red_rocket";
-            case CubeColor.Green:
-                return "Cubes/RocketState/green_rocket";
-            case CubeColor.Blue:
-                return "Cubes/RocketState/blue_rocket";
-            case CubeColor.Yellow:
-                return "Cubes/RocketState/yellow_rocket";
-            default:
-                return "Cubes/RocketState/red_rocket";
+            case CubeColor.Red: return "red_rocket";
+            case CubeColor.Green: return "green_rocket";
+            case CubeColor.Blue: return "blue_rocket";
+            case CubeColor.Yellow: return "yellow_rocket";
+            default: return "red_rocket";
         }
     }
-    
+
     /// <summary>
     /// Clears all rocket hints from the grid.
     /// </summary>

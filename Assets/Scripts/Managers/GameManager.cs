@@ -100,37 +100,22 @@ public class GameManager : MonoBehaviour
         int levelToLoad = PlayerPrefs.GetInt("SelectedLevelForGame", 1);
         Debug.Log($"[GameManager] Requesting Level {levelToLoad}...");
 
-        string formattedLevelNumber = levelToLoad.ToString("D2"); // D2 ensures 01, 05, 10 format
+        string levelJsonPath = System.IO.Path.Combine(Application.dataPath, "Levels", $"level_{levelToLoad.ToString("D2")}.json");
+        string jsonContent = null;
 
-        // Try Loading from Resources first (Standard for multiple levels)
-        // Adjust path to coincide with user file structure (level_01, level_02...)
-        TextAsset levelAsset = Resources.Load<TextAsset>($"Levels/level_{formattedLevelNumber}"); 
-        
-        // Fallback checks
-        if (levelAsset == null)
+        if (System.IO.File.Exists(levelJsonPath))
         {
-             // Try searching without leading zero just in case (e.g. level_1 fallback)
-             levelAsset = Resources.Load<TextAsset>($"Levels/level_{levelToLoad}");
-        }
-
-        if (levelAsset == null)
-        {
-             // Try root resources with formatted name
-             levelAsset = Resources.Load<TextAsset>($"level_{formattedLevelNumber}");
-        }
-
-        if (levelAsset != null)
-        {
-            LoadLevel(levelAsset.text);
+            jsonContent = System.IO.File.ReadAllText(levelJsonPath);
+            LoadLevel(jsonContent);
         }
         else if (_levelJson != null)
         {
-            Debug.LogWarning($"[GameManager] Dynamic level file not found for level {levelToLoad}. Using Inspector assigned test level.");
+            Debug.LogWarning($"[GameManager] Level file not found at {levelJsonPath}. Using Inspector assigned test level.");
             LoadLevel(_levelJson.text);
         }
         else
         {
-            Debug.LogError($"[GameManager] NO LEVEL FILE FOUND! Resources path 'Levels/level_{levelToLoad}' is missing and no Inspector fallback assigned.");
+            Debug.LogError($"[GameManager] NO LEVEL FILE FOUND! Path '{levelJsonPath}' is missing and no Inspector fallback assigned.");
         }
     }
 
@@ -153,6 +138,12 @@ public class GameManager : MonoBehaviour
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
+        // Initialize HUD
+        if (_uiManager != null)
+        {
+            _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
+        }
+
         // Show initial rocket hints after level loads
         StartCoroutine(UpdateHintsNextFrame());
     }
@@ -317,6 +308,10 @@ public class GameManager : MonoBehaviour
 
         if (destroyed)
         {
+            if (_uiManager != null)
+            {
+                _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
+            }
             ResolveBoard();
             CheckGameState();
         }
@@ -425,6 +420,10 @@ public class GameManager : MonoBehaviour
     private void UseMove()
     {
         _remainingMoves--;
+        if (_uiManager != null)
+        {
+            _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
+        }
     }
 
     private void CheckGameState()
