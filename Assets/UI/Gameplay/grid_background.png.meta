@@ -103,13 +103,13 @@ TextureImporter:
       name: grid_background_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 2
         y: 0
-        width: 66
+        width: 62
         height: 66
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 16, y: 28, z: 16, w: 28}
+      border: {x: 28, y: 28, z: 29, w: 28}
       customData: 
       outline: []
       physicsShape: []

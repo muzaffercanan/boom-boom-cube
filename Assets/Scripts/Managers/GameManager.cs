@@ -11,7 +11,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private UIManager _uiManager;
     
     [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
-    [SerializeField] private float _backgroundPadding = 0.5f;
+    [SerializeField] private float _backgroundPadding = 1.0f;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -140,6 +140,15 @@ public class GameManager : MonoBehaviour
 
     private bool _isProcessingTurn = false;
     private bool _isGameOver = false;
+
+    private void OnValidate()
+    {
+        // Allow live background updates in the editor when values change
+        if (_gridBackgroundRenderer != null && _currentLevel != null)
+        {
+            UpdateGridBackground();
+        }
+    }
 
     private void OnItemClicked(int x, int y)
     {
@@ -448,17 +457,34 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        if (_currentLevel == null) return;
+
+        // Ensure the background is parented to the board for consistent local coordinates
+        if (_gridBackgroundRenderer.transform.parent != _boardParent)
+        {
+            _gridBackgroundRenderer.transform.SetParent(_boardParent);
+        }
+
         _gridBackgroundRenderer.gameObject.SetActive(true);
         _gridBackgroundRenderer.drawMode = SpriteDrawMode.Sliced;
 
-        float width = _currentLevel.grid_width * _cellSize;
-        float height = _currentLevel.grid_height * _cellSize;
+        // Total grid dimensions based on counts and cell size
+        float gridWidth = _currentLevel.grid_width * _cellSize;
+        float gridHeight = _currentLevel.grid_height * _cellSize;
 
-        _gridBackgroundRenderer.size = new Vector2(width + _backgroundPadding * 2, height + _backgroundPadding * 2);
+        // Set size with symmetric padding
+        _gridBackgroundRenderer.size = new Vector2(gridWidth + _backgroundPadding * 2, gridHeight + _backgroundPadding * 2);
 
-        float centerX = (width - _cellSize) / 2f;
-        float centerY = (height - _cellSize) / 2f;
+        // The items are at (0..W-1)*cellSize, (0..H-1)*cellSize
+        // Their geometric center is (W-1)*cellSize/2
+        float centerX = (gridWidth - _cellSize) / 2f;
+        float centerY = (gridHeight - _cellSize) / 2f;
         
+        // Position at center, slightly behind items
         _gridBackgroundRenderer.transform.localPosition = new Vector3(centerX, centerY, 0.5f);
+        
+        Debug.Log($"[GameManager] Grid Background Configured: GridSize({_currentLevel.grid_width}x{_currentLevel.grid_height}) " +
+                  $"CellSize({_cellSize}) Size({_gridBackgroundRenderer.size.x}x{_gridBackgroundRenderer.size.y}) " +
+                  $"Center({centerX}, {centerY})");
     }
 }
