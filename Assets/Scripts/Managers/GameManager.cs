@@ -2,9 +2,6 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-/// <summary>
-/// Central manager that controls the game flow, level loading, and board resolution.
-/// </summary>
 public class GameManager : MonoBehaviour
 {
     [Header("References")]
@@ -13,7 +10,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _cellSize = 1.0f; 
     [SerializeField] private UIManager _uiManager;
     
-    [Tooltip("Assign the Background SpriteRenderer from the scene. Must NOT be inside Canvas.")]
+    [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
+    [SerializeField] private float _backgroundPadding = 0.5f;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -36,19 +34,10 @@ public class GameManager : MonoBehaviour
     private int _totalObstacles;
     private int _destroyedObstacles;
 
-    /// <summary>
-    /// Current remaining moves for the level.
-    /// </summary>
     public int RemainingMoves => _remainingMoves;
 
-    /// <summary>
-    /// Checks if the game has ended (either won or lost).
-    /// </summary>
     public bool IsGameOver => _remainingMoves <= 0 || IsLevelComplete;
 
-    /// <summary>
-    /// Checks if all level objectives (obstacles) are cleared.
-    /// </summary>
     public bool IsLevelComplete => _destroyedObstacles >= _totalObstacles && _totalObstacles > 0;
 
     private void Start()
@@ -64,19 +53,16 @@ public class GameManager : MonoBehaviour
 
     private void InitializeGame()
     {
-        // Find UIManager if not assigned
         if (_uiManager == null)
         {
             _uiManager = FindObjectOfType<UIManager>();
             if (_uiManager == null)
             {
-                // Create UIManager if doesn't exist
                 GameObject go = new GameObject("UIManager");
                 _uiManager = go.AddComponent<UIManager>();
             }
         }
 
-        // FIX: Hide leftover LevelButton from MainScene if present in LevelScene
         GameObject levelBtn = GameObject.Find("LevelButton");
         if (levelBtn != null)
         {
@@ -96,7 +82,6 @@ public class GameManager : MonoBehaviour
         _rocketHintSystem = new RocketHintSystem(_gridSystem, _matchSystem, _rocketMatchSize);
         _levelLoader = new LevelLoader(_itemFactory, _boardParent, _cellSize);
 
-        // Dynamic Level Loading
         int levelToLoad = PlayerPrefs.GetInt("SelectedLevelForGame", 1);
         Debug.Log($"[GameManager] Requesting Level {levelToLoad}...");
 
@@ -110,7 +95,6 @@ public class GameManager : MonoBehaviour
         }
         else if (_levelJson != null)
         {
-            Debug.LogWarning($"[GameManager] Level file not found at {levelJsonPath}. Using Inspector assigned test level.");
             LoadLevel(_levelJson.text);
         }
         else
@@ -119,10 +103,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Loads a level from a JSON string representation.
-    /// </summary>
-    /// <param name="json">The JSON data string of the level.</param>
     public void LoadLevel(string json)
     {
         _currentLevel = JsonUtility.FromJson<LevelData>(json);
@@ -138,13 +118,12 @@ public class GameManager : MonoBehaviour
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
-        // Initialize HUD
         if (_uiManager != null)
         {
             _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
         }
 
-        // Show initial rocket hints after level loads
+        UpdateGridBackground();
         StartCoroutine(UpdateHintsNextFrame());
     }
 
@@ -160,12 +139,11 @@ public class GameManager : MonoBehaviour
     }
 
     private bool _isProcessingTurn = false;
+    private bool _isGameOver = false;
 
     private void OnItemClicked(int x, int y)
     {
-        if (_isProcessingTurn) return;
-        
-        // Manual game over check if property unavailable, or trust existing
+        if (_isProcessingTurn || _isGameOver) return;
         if (_remainingMoves <= 0) return; 
 
         var item = _gridSystem.GetItem(x, y);
@@ -194,10 +172,8 @@ public class GameManager : MonoBehaviour
 
         UseMove();
 
-        // 1. Check Rocket Creation
         bool createdRocket = (matches.Count >= _rocketMatchSize);
 
-        // 2. Damage Obstacles
         var adjacentObstacles = _matchSystem.GetAdjacentObstacles(matches);
         HashSet<IBoardItem> damagedObstacles = new HashSet<IBoardItem>();
         
@@ -218,7 +194,6 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // 3. Destroy Matches visual delay
         yield return new WaitForSeconds(0.1f);
 
         foreach (var it in matches)
@@ -230,13 +205,11 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.1f);
 
-        // 4. Create Rocket
         if (createdRocket)
         {
             CreateRocket(x, y);
         }
 
-        // 5. Gravity Sequence
         yield return StartCoroutine(ApplyGravityAndFillSequence());
 
         CheckGameState();
@@ -251,7 +224,7 @@ public class GameManager : MonoBehaviour
         bool isCombo;
         _rocketSystem.TryProcessRocketClick(x, y, rocket, out isCombo);
         
-        yield return new WaitForSeconds(0.3f); // Wait for rocket launch/travel
+        yield return new WaitForSeconds(0.8f); 
 
         yield return StartCoroutine(ApplyGravityAndFillSequence());
 
@@ -265,16 +238,14 @@ public class GameManager : MonoBehaviour
         do
         {
             moved = _gravitySystem.ApplyGravity();
-            // Wait less than animation time (0.15s) to allow cascading "flow"
             if (moved) yield return new WaitForSeconds(0.08f); 
         }
         while (moved);
 
         FillEmptySpaces();
         
-        yield return new WaitForSeconds(0.2f); // Wait for spawn
+        yield return new WaitForSeconds(0.2f); 
         
-        // Re-check gravity after spawn just in case
         do
         {
             moved = _gravitySystem.ApplyGravity();
@@ -312,8 +283,6 @@ public class GameManager : MonoBehaviour
             {
                 _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
             }
-            ResolveBoard();
-            CheckGameState();
         }
     }
 
@@ -335,7 +304,6 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            // Apply bottom-left origin conversion (Standard Cartesian)
             float worldY = y * _cellSize;
             go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
         }
@@ -358,7 +326,6 @@ public class GameManager : MonoBehaviour
 
         FillEmptySpaces();
         
-        // Update rocket hints after board settles
         _rocketHintSystem?.UpdateHints();
     }
 
@@ -393,12 +360,10 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            // Apply bottom-left origin conversion (Standard Cartesian)
             float worldY = y * _cellSize;
             go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
 
-            // Animation
-            Vector3 targetScale = go.transform.localScale; // Capture prefab scale
+            Vector3 targetScale = go.transform.localScale; 
             go.transform.localScale = Vector3.zero;
             StartCoroutine(ScaleUp(go.transform, 0.2f, targetScale));
         }
@@ -428,13 +393,17 @@ public class GameManager : MonoBehaviour
 
     private void CheckGameState()
     {
+        if (_isGameOver) return;
+
         if (IsLevelComplete)
         {
+            _isGameOver = true;
             Debug.Log("[GameManager] LEVEL COMPLETE! You Win!");
             OnLevelWin();
         }
         else if (_remainingMoves <= 0)
         {
+            _isGameOver = true;
             Debug.Log("[GameManager] OUT OF MOVES! You Lose!");
             OnLevelLose();
         }
@@ -442,7 +411,6 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelWin()
     {
-        // Save progress (Unlock next level)
         int completedLevel = _currentLevel.level_number;
         int savedLevel = PlayerPrefs.GetInt("LastPlayedLevel", 1);
         
@@ -468,8 +436,29 @@ public class GameManager : MonoBehaviour
     
     private IEnumerator UpdateHintsNextFrame()
     {
-        yield return null; // Wait one frame for items to be fully instantiated
+        yield return null; 
         _rocketHintSystem?.UpdateHints();
     }
 
+    private void UpdateGridBackground()
+    {
+        if (_gridBackgroundRenderer == null)
+        {
+            Debug.LogWarning("[GameManager] Grid Background Renderer is not assigned!");
+            return;
+        }
+
+        _gridBackgroundRenderer.gameObject.SetActive(true);
+        _gridBackgroundRenderer.drawMode = SpriteDrawMode.Sliced;
+
+        float width = _currentLevel.grid_width * _cellSize;
+        float height = _currentLevel.grid_height * _cellSize;
+
+        _gridBackgroundRenderer.size = new Vector2(width + _backgroundPadding * 2, height + _backgroundPadding * 2);
+
+        float centerX = (width - _cellSize) / 2f;
+        float centerY = (height - _cellSize) / 2f;
+        
+        _gridBackgroundRenderer.transform.localPosition = new Vector3(centerX, centerY, 0.5f);
+    }
 }
