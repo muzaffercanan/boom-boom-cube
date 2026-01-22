@@ -198,7 +198,7 @@ public class GameManager : MonoBehaviour
                 if (destroyed)
                 {
                     _destroyedObstacles++;
-                    _gridSystem.DestroyItem(obstacle.X, obstacle.Y);
+                    DestroyItemWithEffect(obstacle.X, obstacle.Y, DamageType.MatchBlast);
                 }
             }
         }
@@ -207,9 +207,7 @@ public class GameManager : MonoBehaviour
 
         foreach (var it in matches)
         {
-            _gridSystem.SetItem(it.X, it.Y, null); 
-            if (it.GetGameObject() != null)
-                Destroy(it.GetGameObject());
+            DestroyItemWithEffect(it.X, it.Y, DamageType.MatchBlast);
         }
 
         yield return new WaitForSeconds(0.1f);
@@ -277,12 +275,12 @@ public class GameManager : MonoBehaviour
             if (destroyed)
             {
                 _destroyedObstacles++;
-                _gridSystem.DestroyItem(pos.x, pos.y);
+                DestroyItemWithEffect(pos.x, pos.y, DamageType.RocketHit);
             }
         }
         else
         {
-            _gridSystem.DestroyItem(pos.x, pos.y);
+            DestroyItemWithEffect(pos.x, pos.y, DamageType.RocketHit);
             destroyed = true;
         }
 
@@ -292,6 +290,16 @@ public class GameManager : MonoBehaviour
             {
                 _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
             }
+        }
+    }
+
+    private void DestroyItemWithEffect(int x, int y, DamageType type)
+    {
+        var item = _gridSystem.GetItem(x, y);
+        if (item != null)
+        {
+            item.PlayDestroyEffect(type);
+            _gridSystem.DestroyItem(x, y);
         }
     }
 

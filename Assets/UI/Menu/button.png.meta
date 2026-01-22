@@ -103,13 +103,13 @@ TextureImporter:
       name: button_0
       rect:
         serializedVersion: 2
-        x: 3
-        y: 2
-        width: 80
-        height: 263
+        x: 0
+        y: 0
+        width: 83
+        height: 267
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 79, z: 0, w: 79}
+      border: {x: 38, y: 79, z: 20, w: 77}
       customData: 
       outline: []
       physicsShape: []

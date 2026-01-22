@@ -9,4 +9,5 @@ public interface IBoardItem
     void Init(Action<int, int> onClickCallback);
     ItemType GetItemType();
     GameObject GetGameObject();
+    void PlayDestroyEffect(DamageType damageType);
 }

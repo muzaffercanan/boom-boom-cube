@@ -148,3 +148,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _health: 1
+  _particle01: {fileID: 2915079719101957843, guid: 103e6bcd951077846b2519bf484c96d4, type: 3}
+  _particle02: {fileID: 4088258904093105720, guid: 537022d99f0fa654aa7e4f10381510ba, type: 3}
+  _particle03: {fileID: 3982863212365064715, guid: 80880ffaf94eed84cac66d902884800b, type: 3}

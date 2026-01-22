@@ -149,3 +149,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _color: 0
   _sprites: []
+  _destroyParticle: {fileID: 6969560748653419226, guid: 3ec3476bea0431f448b2094620b13567, type: 3}
