@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _health: 0
-  _healthySprite: {fileID: 0}
+  _healthySprite: {fileID: -4678962038349899921, guid: a96062fec0ce25c4b9f256087801409a, type: 3}
   _damagedSprite: {fileID: -1432975368721100300, guid: 0ff48d84257278b4a9273c4b632817ee, type: 3}
   _destroyParticle01: {fileID: 6338232532062186310, guid: d5738f5fc1fba8e48a95870ec2e3d44d, type: 3}
   _destroyParticle02: {fileID: 5743530767896759005, guid: 74447441d0ba63242bcbd0fc8cc76b36, type: 3}

@@ -35,7 +35,7 @@ public class RocketSystem
             return true;
         }
 
-        ProcessSingleRocket(x, y, clickedRocket);
+        TriggerRocket(x, y, clickedRocket);
         return true;
     }
 
@@ -54,10 +54,18 @@ public class RocketSystem
         return null;
     }
 
-    private void ProcessSingleRocket(int x, int y, RocketItem rocket)
+    public void TriggerRocket(int x, int y, RocketItem rocket)
     {
+        // Prevent infinite recursion if somehow called on already destroyed item
+        if (rocket == null) return;
+
         _gridSystem.SetItem(x, y, null);
-        Object.Destroy(rocket.GetGameObject());
+        
+        GameObject go = rocket.GetGameObject();
+        if (go != null)
+        {
+             Object.Destroy(go);
+        }
 
         SpawnRocketBeams(x, y, rocket.IsHorizontal, false);
     }

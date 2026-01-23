@@ -119,6 +119,14 @@ public class UIManager : MonoBehaviour
         if (_gameHUD) _gameHUD.SetActive(false);
         if (_winPanel) _winPanel.SetActive(true);
         if (_celebrationParticles) _celebrationParticles.Play();
+        
+        StartCoroutine(AutoLoadMainScene(3.0f));
+    }
+
+    private System.Collections.IEnumerator AutoLoadMainScene(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneManager.LoadScene("MainScene");
     }
 
     private void OnLevelLose()

@@ -208,6 +208,9 @@ public class GameManager : MonoBehaviour
         }
 
         UseMove();
+        
+        // Increment global blast ID so obstacles know this is a single blast event
+        BlastIdTracker.NextBlast();
 
         bool createdRocket = (matches.Count >= _rocketMatchSize);
 
@@ -231,14 +234,20 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.1f);
+        // If creating a rocket, animate cubes to the center first
+        if (createdRocket)
+        {
+            yield return StartCoroutine(AnimateCubesToCenter(matches, x, y));
+        }
+        else
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
 
         foreach (var it in matches)
         {
             DestroyItemWithEffect(it.X, it.Y, DamageType.MatchBlast);
         }
-
-        yield return new WaitForSeconds(0.1f);
 
         if (createdRocket)
         {
@@ -249,6 +258,23 @@ public class GameManager : MonoBehaviour
 
         CheckGameState();
         _isProcessingTurn = false;
+    }
+
+    private IEnumerator AnimateCubesToCenter(List<IBoardItem> items, int targetX, int targetY)
+    {
+        // Target position in local board coordinates
+        Vector3 targetPos = new Vector3(targetX * _cellSize, targetY * _cellSize, 0);
+        float duration = 0.2f;
+
+        foreach (var item in items)
+        {
+            if (item is AbstractBoardItem abi) 
+            {
+                 // Move visual only
+                 abi.MoveToPosition(targetPos, duration);
+            }
+        }
+        yield return new WaitForSeconds(duration);
     }
 
     private IEnumerator ProcessTurnRocket(int x, int y, RocketItem rocket)
@@ -296,6 +322,15 @@ public class GameManager : MonoBehaviour
         if (item == null) return;
 
         bool destroyed = false;
+
+        // CHECK FOR ROCKET CHAIN REACTION
+        if (item is RocketItem rocket)
+        {
+            _rocketSystem.TriggerRocket(pos.x, pos.y, rocket);
+            // Rockets don't count as destroyed obstacles usually, but they do clear the cell.
+            // If you want to play a sound or effect, TriggerRocket handles the beams.
+            return;
+        }
 
         if (item is IDamageable damageable)
         {
