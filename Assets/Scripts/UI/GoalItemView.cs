@@ -1,0 +1,26 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class GoalItemView : MonoBehaviour
+{
+    [SerializeField] private Image _iconImage;
+    [SerializeField] private TMP_Text _countText;
+
+    public void SetGoal(Sprite icon, int count)
+    {
+        if (_iconImage != null)
+        {
+            _iconImage.sprite = icon;
+            _iconImage.enabled = icon != null;
+        }
+        UpdateCount(count);
+    }
+
+    public void UpdateCount(int count)
+    {
+        if (_countText == null) return;
+        _countText.text = Mathf.Max(0, count).ToString();
+    }
+
+}

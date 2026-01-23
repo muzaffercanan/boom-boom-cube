@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -8,10 +9,18 @@ public class GameManager : MonoBehaviour
     [SerializeField] private ItemFactory _itemFactory;
     [SerializeField] private Transform _boardParent;
     [SerializeField] private float _cellSize = 1.0f; 
-    [SerializeField] private UIManager _uiManager;
+    
+    // UIManager removed - Decoupled via Events
     
     [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
     [SerializeField] private float _backgroundPadding = 1.0f;
+
+    // --- EVENTS ---
+    public static event Action<LevelData, Dictionary<string, int>> OnLevelLoaded;
+    public static event Action<int> OnMovesUpdated;
+    public static event Action<Dictionary<string, int>> OnGoalsUpdated;
+    public static event Action OnLevelWon;
+    public static event Action OnLevelLost;
 
     [Header("Level")]
     [SerializeField] private TextAsset _levelJson;
@@ -38,7 +47,18 @@ public class GameManager : MonoBehaviour
 
     public bool IsGameOver => _remainingMoves <= 0 || IsLevelComplete;
 
-    public bool IsLevelComplete => _destroyedObstacles >= _totalObstacles && _totalObstacles > 0;
+    public bool IsLevelComplete
+    {
+        get
+        {
+            if (_goalCounts == null || _goalCounts.Count == 0) return false;
+            foreach (var count in _goalCounts.Values)
+            {
+                if (count > 0) return false;
+            }
+            return true;
+        }
+    }
 
     private void Start()
     {
@@ -53,15 +73,7 @@ public class GameManager : MonoBehaviour
 
     private void InitializeGame()
     {
-        if (_uiManager == null)
-        {
-            _uiManager = FindObjectOfType<UIManager>();
-            if (_uiManager == null)
-            {
-                GameObject go = new GameObject("UIManager");
-                _uiManager = go.AddComponent<UIManager>();
-            }
-        }
+        // UIManager removed - Decoupled logic
 
         GameObject levelBtn = GameObject.Find("LevelButton");
         if (levelBtn != null)
@@ -103,6 +115,8 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private Dictionary<string, int> _goalCounts = new Dictionary<string, int>();
+
     public void LoadLevel(string json)
     {
         _currentLevel = JsonUtility.FromJson<LevelData>(json);
@@ -113,30 +127,38 @@ public class GameManager : MonoBehaviour
         }
 
         _remainingMoves = _currentLevel.move_count;
-        _totalObstacles = CountObstaclesInLevel(_currentLevel);
+        
+        // Count goals per type
+        _goalCounts.Clear();
+        _totalObstacles = 0;
+        
+        foreach (var id in _currentLevel.grid)
+        {
+            if (IsGoalItem(id))
+            {
+                if (!_goalCounts.ContainsKey(id)) _goalCounts[id] = 0;
+                _goalCounts[id]++;
+                _totalObstacles++;
+            }
+        }
         _destroyedObstacles = 0;
 
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
-        if (_uiManager != null)
-        {
-            _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
-        }
-
         UpdateGridBackground();
         StartCoroutine(UpdateHintsNextFrame());
+
+        // Broadcast State
+        OnLevelLoaded?.Invoke(_currentLevel, _goalCounts);
+        OnMovesUpdated?.Invoke(_remainingMoves);
     }
 
-    private int CountObstaclesInLevel(LevelData data)
+    private bool IsGoalItem(string id)
     {
-        int count = 0;
-        foreach (var id in data.grid)
-        {
-            if (id == "bo" || id == "s" || id == "v")
-                count++;
-        }
-        return count;
+        return id == "bo" || id == "s" || id == "v";
     }
+
+    // Removed CountObstaclesInLevel as it is integrated above
 
     private bool _isProcessingTurn = false;
     private bool _isGameOver = false;
@@ -283,29 +305,49 @@ public class GameManager : MonoBehaviour
             DestroyItemWithEffect(pos.x, pos.y, DamageType.RocketHit);
             destroyed = true;
         }
-
-        if (destroyed)
-        {
-            if (_uiManager != null)
-            {
-                _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
-            }
-        }
     }
 
     private void DestroyItemWithEffect(int x, int y, DamageType type)
     {
         var item = _gridSystem.GetItem(x, y);
-        if (item != null)
+        if (item == null)
         {
-            item.PlayDestroyEffect(type);
-            _gridSystem.DestroyItem(x, y);
+            return;
         }
+
+        bool goalChanged = false;
+
+        string goalId = GetGoalIdFromItem(item);
+        if (goalId != null && _goalCounts.ContainsKey(goalId))
+        {
+            if (_goalCounts[goalId] > 0)
+            {
+                _goalCounts[goalId]--;
+                goalChanged = true;
+            }
+        }
+
+        item.PlayDestroyEffect(type);
+        _gridSystem.DestroyItem(x, y);
+
+        if (goalChanged)
+        {
+            OnGoalsUpdated?.Invoke(_goalCounts);
+        }
+    }
+
+
+    private string GetGoalIdFromItem(IBoardItem item)
+    {
+        if (item is BoxItem) return "bo";
+        if (item is StoneItem) return "s";
+        if (item is VaseItem) return "v";
+        return null;
     }
 
     private void CreateRocket(int x, int y)
     {
-        bool isHorizontal = Random.value < 0.5f;
+        bool isHorizontal = UnityEngine.Random.value < 0.5f;
         string rocketId = isHorizontal ? "hro" : "vro";
 
         var rocket = _itemFactory.CreateItem(rocketId, _boardParent);
@@ -402,10 +444,7 @@ public class GameManager : MonoBehaviour
     private void UseMove()
     {
         _remainingMoves--;
-        if (_uiManager != null)
-        {
-            _uiManager.UpdateHUD(_remainingMoves, _totalObstacles - _destroyedObstacles);
-        }
+        OnMovesUpdated?.Invoke(_remainingMoves);
     }
 
     private void CheckGameState()
@@ -437,18 +476,12 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.Save();
         }
 
-        if (_uiManager != null)
-        {
-            _uiManager.OnLevelWin();
-        }
+        OnLevelWon?.Invoke();
     }
 
     private void OnLevelLose()
     {
-        if (_uiManager != null)
-        {
-            _uiManager.OnLevelLose();
-        }
+        OnLevelLost?.Invoke();
     }
     
     private IEnumerator UpdateHintsNextFrame()

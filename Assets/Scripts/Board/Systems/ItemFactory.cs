@@ -39,6 +39,17 @@ public class ItemFactory : ScriptableObject
         return Instantiate(prefab, parent);
     }
 
+    public Sprite GetSprite(string id)
+    {
+        GameObject prefab = GetPrefab(id);
+        if (prefab != null)
+        {
+            var r = prefab.GetComponent<SpriteRenderer>();
+            if (r != null) return r.sprite;
+        }
+        return null;
+    }
+
     public IBoardItem CreateItem(string id, Transform parent)
     {
         if (id == "rand")

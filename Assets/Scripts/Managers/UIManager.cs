@@ -1,213 +1,141 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 using TMPro;
 
 public class UIManager : MonoBehaviour
 {
+    [Header("Main References")]
+    [SerializeField] private ItemFactory _itemFactory;
+    
     [Header("Panels")]
+    [SerializeField] private GameObject _gameHUD;
     [SerializeField] private GameObject _winPanel;
     [SerializeField] private GameObject _losePanel;
-    [SerializeField] private GameObject _gameHUD; // Moves, Grid background etc.
 
-    [Header("HUD Text")]
-    [SerializeField] private TMP_Text _moves;
-    [SerializeField] private TMP_Text _goals;
+    [Header("HUD Elements")]
+    [SerializeField] private TMP_Text _MovesNumber;
+    [SerializeField] private RectTransform _goalsContainer;
+    [SerializeField] private GoalItemView _goalItemPrefab;
 
     [Header("Win UI")]
     [SerializeField] private Button _winMainMenuButton;
-    [SerializeField] private ParticleSystem _celebrationParticles;
+    [SerializeField] private ParticleSystem _celebrationParticles; // Optional
 
     [Header("Lose UI")]
     [SerializeField] private Button _loseTryAgainButton;
     [SerializeField] private Button _loseMainMenuButton;
-    [SerializeField] private Button _loseCloseButton; // Acts like return to main menu or just close popup? Usually return in this context.
+    [SerializeField] private Button _loseCloseButton;
 
-    private void Start()
+    private Dictionary<string, GoalItemView> _goalViews = new Dictionary<string, GoalItemView>();
+
+    private void Awake()
     {
-        // Auto-generate UI if missing
-        if (_gameHUD == null) CreateHUD();
-        if (_winPanel == null) CreateWinPanel();
-        if (_losePanel == null) CreateLosePanel();
-
-        // Ensure panels are hidden at start
-        if (_winPanel) _winPanel.SetActive(false);
-        if (_losePanel) _losePanel.SetActive(false);
-        if (_gameHUD) _gameHUD.SetActive(true);
-
-        // Listeners
+        // Wire up buttons
         if (_winMainMenuButton) _winMainMenuButton.onClick.AddListener(OnMainMenuClicked);
-        
         if (_loseTryAgainButton) _loseTryAgainButton.onClick.AddListener(OnTryAgainClicked);
         if (_loseMainMenuButton) _loseMainMenuButton.onClick.AddListener(OnMainMenuClicked);
         if (_loseCloseButton) _loseCloseButton.onClick.AddListener(OnMainMenuClicked);
+
+        // Ensure correct start state
+        ShowHUD();
     }
 
-    private void CreateHUD()
+    private void OnEnable()
     {
-        // Try to find existing HUD or canvas
-        var canvas = FindObjectOfType<Canvas>();
-        if (canvas != null)
-        {
-            _gameHUD = canvas.gameObject;
+        GameManager.OnLevelLoaded += OnLevelLoaded;
+        GameManager.OnMovesUpdated += OnMovesUpdated;
+        GameManager.OnGoalsUpdated += OnGoalsUpdated;
+        GameManager.OnLevelWon += OnLevelWin;
+        GameManager.OnLevelLost += OnLevelLose;
+    }
 
-            // FIX: Enforce Scale With Screen Size for 9:16 Portrait support
-            var scaler = canvas.GetComponent<CanvasScaler>();
-            if (scaler != null)
+    private void OnDisable()
+    {
+        GameManager.OnLevelLoaded -= OnLevelLoaded;
+        GameManager.OnMovesUpdated -= OnMovesUpdated;
+        GameManager.OnGoalsUpdated -= OnGoalsUpdated;
+        GameManager.OnLevelWon -= OnLevelWin;
+        GameManager.OnLevelLost -= OnLevelLose;
+    }
+
+    private void OnLevelLoaded(LevelData level, Dictionary<string, int> goals)
+    {
+        ShowHUD();
+        BuildGoals(goals);
+        
+        // Reset Text
+        if (_MovesNumber) _MovesNumber.text = level.move_count.ToString();
+    }
+
+    private void BuildGoals(Dictionary<string, int> goals)
+    {
+        if (_goalsContainer == null || _goalItemPrefab == null)
+        {
+            Debug.LogError("[UIManager] GoalsContainer or GoalItemPrefab missing!");
+            return;
+        }
+        // Clear existing
+        foreach (Transform child in _goalsContainer)
+        {
+            Destroy(child.gameObject);
+        }
+        _goalViews.Clear();
+
+        if (goals == null) return;
+
+        foreach (var kvp in goals)
+        {
+            string id = kvp.Key;
+            int count = kvp.Value;
+
+            GoalItemView view = Instantiate(_goalItemPrefab, _goalsContainer);
+            Sprite icon = _itemFactory ? _itemFactory.GetSprite(id) : null;
+            
+            view.SetGoal(icon, count);
+            _goalViews[id] = view;
+        }
+    }
+
+    private void OnMovesUpdated(int moves)
+    {
+        if (_MovesNumber) _MovesNumber.text = moves.ToString();
+    }
+
+    private void OnGoalsUpdated(Dictionary<string, int> currentGoals)
+    {
+        foreach (var kvp in currentGoals)
+        {
+            if (_goalViews.ContainsKey(kvp.Key))
             {
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.referenceResolution = new Vector2(1080, 1920);
-                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-                scaler.matchWidthOrHeight = 0.5f; // Balance between width and height
+                _goalViews[kvp.Key].UpdateCount(kvp.Value);
             }
         }
     }
 
-    private TMP_Text CreateText(Transform parent, string name, string initialValue, Vector2 pos)
+    private void OnLevelWin()
     {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-        var text = obj.AddComponent<TextMeshProUGUI>();
-        text.text = initialValue;
-        text.fontSize = 60;
-        text.alignment = TextAlignmentOptions.Center;
-        text.color = Color.white;
-        
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(400, 100);
-        rect.anchoredPosition = pos;
-        
-        return text;
+        if (_gameHUD) _gameHUD.SetActive(false);
+        if (_winPanel) _winPanel.SetActive(true);
+        if (_celebrationParticles) _celebrationParticles.Play();
     }
 
-    public void UpdateHUD(int moves, int goalsRemaining)
+    private void OnLevelLose()
     {
-        if (_moves != null) _moves.text = $"{moves}";
-        if (_goals != null) _goals.text = $"{goalsRemaining}";
+        if (_gameHUD) _gameHUD.SetActive(false);
+        if (_losePanel) _losePanel.SetActive(true);
     }
 
-    private void CreateWinPanel()
+    private void ShowHUD()
     {
-        var canvas = FindObjectOfType<Canvas>();
-        if (canvas == null) return;
-
-        GameObject panel = new GameObject("WinPanel");
-        panel.transform.SetParent(canvas.transform, false);
-        
-        // Add background image
-        var img = panel.AddComponent<Image>();
-        img.color = new Color(0, 0, 0, 0.8f);
-        panel.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-        panel.GetComponent<RectTransform>().anchorMax = Vector2.one;
-        panel.GetComponent<RectTransform>().offsetMin = Vector2.zero;
-        panel.GetComponent<RectTransform>().offsetMax = Vector2.zero;
-
-        // Add Text
-        GameObject textObj = new GameObject("WinText");
-        textObj.transform.SetParent(panel.transform, false);
-        var text = textObj.AddComponent<Text>();
-        text.text = "LEVEL COMPLETED!";
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 60;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.green;
-        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(600, 100);
-        textObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 100);
-
-        // Add Button
-        GameObject btnObj = CreateSimpleButton(panel.transform, "Main Menu", new Vector2(0, -100));
-        _winMainMenuButton = btnObj.GetComponent<Button>();
-
-        _winPanel = panel;
-    }
-
-    private void CreateLosePanel()
-    {
-        var canvas = FindObjectOfType<Canvas>();
-        if (canvas == null) return;
-
-        GameObject panel = new GameObject("LosePanel");
-        panel.transform.SetParent(canvas.transform, false);
-        
-        // Add background image
-        var img = panel.AddComponent<Image>();
-        img.color = new Color(0, 0, 0, 0.8f);
-        panel.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-        panel.GetComponent<RectTransform>().anchorMax = Vector2.one;
-        panel.GetComponent<RectTransform>().offsetMin = Vector2.zero;
-        panel.GetComponent<RectTransform>().offsetMax = Vector2.zero;
-
-        // Add Text
-        GameObject textObj = new GameObject("LoseText");
-        textObj.transform.SetParent(panel.transform, false);
-        var text = textObj.AddComponent<Text>();
-        text.text = "LEVEL FAILED!";
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 60;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.red;
-        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(600, 100);
-        textObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 100);
-
-        // Add Buttons
-        GameObject retryBtn = CreateSimpleButton(panel.transform, "Try Again", new Vector2(0, -50));
-        _loseTryAgainButton = retryBtn.GetComponent<Button>();
-
-        GameObject menuBtn = CreateSimpleButton(panel.transform, "Main Menu", new Vector2(0, -150));
-        _loseMainMenuButton = menuBtn.GetComponent<Button>();
-        _loseCloseButton = menuBtn.GetComponent<Button>(); // Reuse for close logic
-
-        _losePanel = panel;
-    }
-
-    private GameObject CreateSimpleButton(Transform parent, string label, Vector2 pos)
-    {
-        GameObject btnObj = new GameObject(label + "Button");
-        btnObj.transform.SetParent(parent, false);
-        
-        var img = btnObj.AddComponent<Image>();
-        img.color = Color.white;
-        
-        var btn = btnObj.AddComponent<Button>();
-        btn.targetGraphic = img;
-
-        btnObj.GetComponent<RectTransform>().sizeDelta = new Vector2(200, 60);
-        btnObj.GetComponent<RectTransform>().anchoredPosition = pos;
-
-        GameObject textObj = new GameObject("Text");
-        textObj.transform.SetParent(btnObj.transform, false);
-        var text = textObj.AddComponent<Text>();
-        text.text = label;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 24;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.black;
-        textObj.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-        textObj.GetComponent<RectTransform>().anchorMax = Vector2.one;
-        textObj.GetComponent<RectTransform>().offsetMin = Vector2.zero;
-        textObj.GetComponent<RectTransform>().offsetMax = Vector2.zero;
-
-        return btnObj;
-    }
-
-    public void OnLevelWin()
-    {
-        if (_gameHUD != null) _gameHUD.SetActive(false);
-        if (_winPanel != null) _winPanel.SetActive(true);
-        if (_celebrationParticles != null) _celebrationParticles.Play();
-        else Debug.LogWarning("[UIManager] Celebration particles not assigned!");
-    }
-
-    public void OnLevelLose()
-    {
-        if (_gameHUD != null) _gameHUD.SetActive(false);
-        if (_losePanel != null) _losePanel.SetActive(true);
-        else Debug.LogWarning("[UIManager] Lose panel not assigned!");
+        if (_gameHUD) _gameHUD.SetActive(true);
+        if (_winPanel) _winPanel.SetActive(false);
+        if (_losePanel) _losePanel.SetActive(false);
     }
 
     private void OnTryAgainClicked()
     {
-        // Reload current scene
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -216,3 +144,4 @@ public class UIManager : MonoBehaviour
         SceneManager.LoadScene("MainScene");
     }
 }
+
