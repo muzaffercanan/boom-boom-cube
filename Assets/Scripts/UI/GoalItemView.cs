@@ -5,7 +5,7 @@ using TMPro;
 public class GoalItemView : MonoBehaviour
 {
     [SerializeField] private Image _iconImage;
-    [SerializeField] private TMP_Text _countText;
+    [SerializeField] private TMP_Text _countNumber;
 
     public void SetGoal(Sprite icon, int count)
     {
@@ -19,8 +19,8 @@ public class GoalItemView : MonoBehaviour
 
     public void UpdateCount(int count)
     {
-        if (_countText == null) return;
-        _countText.text = Mathf.Max(0, count).ToString();
+        if (_countNumber == null) return;
+        _countNumber.text = Mathf.Max(0, count).ToString();
     }
 
 }

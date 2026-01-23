@@ -113,6 +113,11 @@ public class GameManager : MonoBehaviour
         {
             Debug.LogError($"[GameManager] NO LEVEL FILE FOUND! Path '{levelJsonPath}' is missing and no Inspector fallback assigned.");
         }
+
+        if (_boardParent != null)
+        {
+            _boardParent.gameObject.SetActive(true);
+        }
     }
 
     private Dictionary<string, int> _goalCounts = new Dictionary<string, int>();
@@ -146,6 +151,7 @@ public class GameManager : MonoBehaviour
         _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
         
         UpdateGridBackground();
+        UpdateCamera();
         StartCoroutine(UpdateHintsNextFrame());
 
         // Broadcast State
@@ -477,11 +483,21 @@ public class GameManager : MonoBehaviour
         }
 
         OnLevelWon?.Invoke();
+
+        if (_boardParent != null) _boardParent.gameObject.SetActive(false);
+        
+        GameObject levelBtn = GameObject.Find("LevelButton");
+        if (levelBtn != null) levelBtn.SetActive(true);
     }
 
     private void OnLevelLose()
     {
         OnLevelLost?.Invoke();
+
+        if (_boardParent != null) _boardParent.gameObject.SetActive(false);
+
+        GameObject levelBtn = GameObject.Find("LevelButton");
+        if (levelBtn != null) levelBtn.SetActive(true);
     }
     
     private IEnumerator UpdateHintsNextFrame()
@@ -527,5 +543,58 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] Grid Background Configured: GridSize({_currentLevel.grid_width}x{_currentLevel.grid_height}) " +
                   $"CellSize({_cellSize}) Size({_gridBackgroundRenderer.size.x}x{_gridBackgroundRenderer.size.y}) " +
                   $"Center({centerX}, {centerY})");
+    }
+
+    [Header("Camera")]
+    [SerializeField] private Camera _camera;
+    [SerializeField] private float _cameraPadding = 2.0f;
+
+    private void UpdateCamera()
+    {
+        if (_camera == null) _camera = Camera.main;
+        if (_camera == null) return;
+
+        if (_currentLevel == null) return;
+
+        // Calculate grid dimensions
+        float gridWidth = _currentLevel.grid_width * _cellSize;
+        float gridHeight = _currentLevel.grid_height * _cellSize;
+
+        // Center calculation
+        // Grid starts at (0,0) and goes to (gridWidth, gridHeight) locally
+        // We want the camera to look at the center of this area
+        Vector3 centerPos = new Vector3(
+            (gridWidth - _cellSize) / 2.0f, 
+            (gridHeight - _cellSize) / 2.0f, 
+            -10f // Standard camera Z offset
+        );
+        
+        Vector3 centerWorldPos = _boardParent.TransformPoint(centerPos);
+        centerWorldPos.z = -10f; // Keep camera back
+        _camera.transform.position = centerWorldPos;
+
+        // Calculate Orthographic Size
+        // We want to fit 'gridHeight + padding' vertically
+        // OR 'gridWidth + padding' horizontally, whichever is constrained.
+        
+        float targetHeight = gridHeight + _cameraPadding * 2;
+        float targetWidth = gridWidth + _cameraPadding * 2;
+
+        float screenRatio = (float)Screen.width / (float)Screen.height;
+        float targetRatio = targetWidth / targetHeight;
+
+        if (screenRatio >= targetRatio)
+        {
+            // Screen is wider than target, so height is the constraint
+            _camera.orthographicSize = targetHeight / 2.0f;
+        }
+        else
+        {
+            // Screen is narrower than target, so width is the constraint
+            float differenceInSize = targetRatio / screenRatio;
+            _camera.orthographicSize = targetHeight / 2.0f * differenceInSize;
+        }
+        
+        Debug.Log($"[GameManager] Camera Updated: Pos={centerWorldPos}, Size={_camera.orthographicSize}");
     }
 }
