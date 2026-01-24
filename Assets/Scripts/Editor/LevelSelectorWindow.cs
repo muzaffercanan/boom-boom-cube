@@ -46,33 +46,22 @@ namespace DreamGames.Editor
 
         private void PlayLevel(int level)
         {
-            // Set the preferences that GameManager reads
             PlayerPrefs.SetInt("SelectedLevelForGame", level);
             PlayerPrefs.SetInt("LastPlayedLevel", level);
             PlayerPrefs.Save();
 
             Debug.Log($"[LevelSelector] Ready to play Level {level}");
 
-            // If we are already playing, we might want to stop and restart, or just let the user restart manually.
-            // But for convenience, let's force a restart if playing, or start if not.
             
             if (EditorApplication.isPlaying)
             {
                 EditorApplication.isPlaying = false;
-                // We can't immediately start playing again in the same frame.
-                // The user will have to click Play again or we could hook into update. 
-                // For simplicity, let's just stop playing and let the user know they can start.
-                // Actually, often it's better to just ensure the Prefs are set (done above).
                 Debug.Log("[LevelSelector] Stopped playback. Press Play to start the selected level.");
             }
             else
             {
-                // Ensure we are in the correct scene if possible, or just start playing.
-                // If GameManager is in the current scene or DontDestroyOnLoad, it should pick it up.
-                // Assuming LevelScene is the main scene.
                 if (EditorSceneManager.GetActiveScene().name != "LevelScene")
                 {
-                    // Optional: Open LevelScene if known
                      string scenePath = "Assets/Scenes/LevelScene.unity";
                      if (System.IO.File.Exists(scenePath)) 
                      {

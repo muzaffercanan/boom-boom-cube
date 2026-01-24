@@ -8,6 +8,7 @@ public class UIManager : MonoBehaviour
 {
     [Header("Main References")]
     [SerializeField] private ItemFactory _itemFactory;
+    [SerializeField] private ConfettiManager _confettiManager;
     
     [Header("Panels")]
     [SerializeField] private GameObject _gameHUD;
@@ -21,8 +22,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Win UI")]
     [SerializeField] private Button _winMainMenuButton;
-    [SerializeField] private ParticleSystem _celebrationParticles; // Optional
-
+    
     [Header("Lose UI")]
     [SerializeField] private Button _loseTryAgainButton;
     [SerializeField] private Button _loseMainMenuButton;
@@ -67,6 +67,9 @@ public class UIManager : MonoBehaviour
         
         // Reset Text
         if (_MovesNumber) _MovesNumber.text = level.move_count.ToString();
+        
+        // Stop confetti if running
+        if (_confettiManager) _confettiManager.StopConfetti();
     }
 
     private void BuildGoals(Dictionary<string, int> goals)
@@ -118,7 +121,9 @@ public class UIManager : MonoBehaviour
     {
         if (_gameHUD) _gameHUD.SetActive(false);
         if (_winPanel) _winPanel.SetActive(true);
-        if (_celebrationParticles) _celebrationParticles.Play();
+        
+        // Play Confetti
+        if (_confettiManager) _confettiManager.PlayConfetti();
         
         StartCoroutine(AutoLoadMainScene(3.0f));
     }

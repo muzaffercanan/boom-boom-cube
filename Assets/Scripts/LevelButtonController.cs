@@ -60,7 +60,7 @@ public class LevelButtonController : MonoBehaviour
         else
         {
             _buttonText.text = $"Level {_targetLevel}";
-            _button.interactable = true;
+            if (_button != null) _button.interactable = true;
         }
     }
 

@@ -29,7 +29,6 @@ public class LevelTools : EditorWindow
     private static void SetLevel(int level)
     {
         PlayerPrefs.SetInt("LastPlayedLevel", level);
-        // Also set the selection for immediate testing if GameManager reads it
         PlayerPrefs.SetInt("SelectedLevelForGame", level); 
         PlayerPrefs.Save();
         Debug.Log($"[LevelTools] Progress forced to Level {level}.");
