@@ -9,7 +9,8 @@ public class VaseItem : ObstacleItem, IFallable
     [SerializeField] private Sprite _damagedSprite;
 
     [Header("Particles")]
-    [SerializeField] private ParticleSystem _destroyParticle01; // Phase 2
+
+    [SerializeField] private ParticleSystem _destroyParticle01;
     [SerializeField] private ParticleSystem _destroyParticle02;
     [SerializeField] private ParticleSystem _destroyParticle03;
 
@@ -17,13 +18,13 @@ public class VaseItem : ObstacleItem, IFallable
 
     private void Start()
     {
-        _health = 2; // Enforce correct health for Vase
+        _health = 2;
         UpdateVisuals();
     }
 
     public override bool TakeDamage(DamageType type)
     {
-        // For match blasts, ensure we only take damage once per blast ID
+
         if (type == DamageType.MatchBlast)
         {
             int currentId = BlastIdTracker.CurrentBlastId;
@@ -36,7 +37,7 @@ public class VaseItem : ObstacleItem, IFallable
 
     public override void PlayDestroyEffect(DamageType damageType)
     {
-        // Phase 2 Destroy Effect
+
         SpawnParticle(_destroyParticle01);
         SpawnParticle(_destroyParticle02);
         SpawnParticle(_destroyParticle03);

@@ -32,13 +32,13 @@ public class UIManager : MonoBehaviour
 
     private void Awake()
     {
-        // Wire up buttons
+
         if (_winMainMenuButton) _winMainMenuButton.onClick.AddListener(OnMainMenuClicked);
         if (_loseTryAgainButton) _loseTryAgainButton.onClick.AddListener(OnTryAgainClicked);
         if (_loseMainMenuButton) _loseMainMenuButton.onClick.AddListener(OnMainMenuClicked);
         if (_loseCloseButton) _loseCloseButton.onClick.AddListener(OnMainMenuClicked);
 
-        // Ensure correct start state
+
         ShowHUD();
     }
 
@@ -65,10 +65,8 @@ public class UIManager : MonoBehaviour
         ShowHUD();
         BuildGoals(goals);
         
-        // Reset Text
         if (_MovesNumber) _MovesNumber.text = level.move_count.ToString();
         
-        // Stop confetti if running
         if (_confettiManager) _confettiManager.StopConfetti();
     }
 
@@ -79,7 +77,7 @@ public class UIManager : MonoBehaviour
             Debug.LogError("[UIManager] GoalsContainer or GoalItemPrefab missing!");
             return;
         }
-        // Clear existing
+
         foreach (Transform child in _goalsContainer)
         {
             Destroy(child.gameObject);
@@ -122,7 +120,7 @@ public class UIManager : MonoBehaviour
         if (_gameHUD) _gameHUD.SetActive(false);
         if (_winPanel) _winPanel.SetActive(true);
         
-        // Play Confetti
+
         if (_confettiManager) _confettiManager.PlayConfetti();
         
         StartCoroutine(AutoLoadMainScene(3.0f));

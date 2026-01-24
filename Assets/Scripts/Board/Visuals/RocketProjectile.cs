@@ -16,7 +16,9 @@ public class RocketProjectile : MonoBehaviour
     private int _startY;
     private int _maxRange = -1; 
 
-    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, int maxRange = -1)
+    private AudioSource _audioSource;
+
+    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, AudioClip loopSfx = null, int maxRange = -1)
     {
         _direction = direction;
         _cellSize = cellSize;
@@ -31,6 +33,15 @@ public class RocketProjectile : MonoBehaviour
         _lastVisitedY = startY;
         
         _maxRange = maxRange;
+
+        if (loopSfx != null)
+        {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.clip = loopSfx;
+            _audioSource.loop = true;
+            _audioSource.volume = AudioManager.Instance != null ? AudioManager.Instance.SFXVolume : 1f;
+            _audioSource.Play();
+        }
 
         CreateVisuals();
     }

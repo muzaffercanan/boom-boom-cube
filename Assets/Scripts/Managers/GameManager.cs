@@ -10,12 +10,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Transform _boardParent;
     [SerializeField] private float _cellSize = 1.0f; 
     
-    // UIManager removed - Decoupled via Events
+
     
     [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
     [SerializeField] private float _backgroundPadding = 1.0f;
 
-    // --- EVENTS ---
+
     public static event Action<LevelData, Dictionary<string, int>> OnLevelLoaded;
     public static event Action<int> OnMovesUpdated;
     public static event Action<Dictionary<string, int>> OnGoalsUpdated;
@@ -28,6 +28,14 @@ public class GameManager : MonoBehaviour
     [Header("Game Rules")]
     [SerializeField] private int _minMatchSize = 2;
     [SerializeField] private int _rocketMatchSize = 4;
+
+    [Header("Audio")]
+    [SerializeField] private AudioClip _backgroundMusic;
+    [SerializeField] private AudioClip _rocketSfx;
+    [SerializeField] private AudioClip _winSfx;
+    [SerializeField] private AudioClip _loseSfx;
+    [SerializeField] private AudioClip _matchSfx;
+    [SerializeField] private AudioClip _tapSfx;
 
     private GridSystem _gridSystem;
     private MatchSystem _matchSystem;
@@ -60,10 +68,26 @@ public class GameManager : MonoBehaviour
         }
     }
 
+
+
     private void Start()
     {
+        if (AudioManager.Instance != null && _backgroundMusic != null)
+        {
+            AudioManager.Instance.PlayMusic(_backgroundMusic);
+        }
         StartCoroutine(InitNextFrame());
     }
+
+    private void PlaySound(AudioClip clip)
+    {
+         if (AudioManager.Instance != null && clip != null)
+         {
+             AudioManager.Instance.PlaySFX(clip);
+         }
+    }
+    
+
 
     private IEnumerator InitNextFrame()
     {
@@ -73,7 +97,7 @@ public class GameManager : MonoBehaviour
 
     private void InitializeGame()
     {
-        // UIManager removed - Decoupled logic
+
 
         GameObject levelBtn = GameObject.Find("LevelButton");
         if (levelBtn != null)
@@ -90,7 +114,7 @@ public class GameManager : MonoBehaviour
         _gridSystem = new GridSystem();
         _matchSystem = new MatchSystem(_gridSystem);
         _gravitySystem = new GravitySystem(_gridSystem, _cellSize);
-        _rocketSystem = new RocketSystem(_gridSystem, _itemFactory, _boardParent, _cellSize, this, OnDamageRequest);
+        _rocketSystem = new RocketSystem(_gridSystem, _itemFactory, _boardParent, _cellSize, this, OnDamageRequest, _rocketSfx);
         _rocketHintSystem = new RocketHintSystem(_gridSystem, _matchSystem, _rocketMatchSize);
         _levelLoader = new LevelLoader(_itemFactory, _boardParent, _cellSize);
 
@@ -133,7 +157,7 @@ public class GameManager : MonoBehaviour
 
         _remainingMoves = _currentLevel.move_count;
         
-        // Count goals per type
+
         _goalCounts.Clear();
         _totalObstacles = 0;
         
@@ -154,7 +178,7 @@ public class GameManager : MonoBehaviour
         UpdateCamera();
         StartCoroutine(UpdateHintsNextFrame());
 
-        // Broadcast State
+
         OnLevelLoaded?.Invoke(_currentLevel, _goalCounts);
         OnMovesUpdated?.Invoke(_remainingMoves);
     }
@@ -164,14 +188,14 @@ public class GameManager : MonoBehaviour
         return id == "bo" || id == "s" || id == "v";
     }
 
-    // Removed CountObstaclesInLevel as it is integrated above
+
 
     private bool _isProcessingTurn = false;
     private bool _isGameOver = false;
 
     private void OnValidate()
     {
-        // Allow live background updates in the editor when values change
+
         if (_gridBackgroundRenderer != null && _currentLevel != null)
         {
             UpdateGridBackground();
@@ -185,6 +209,9 @@ public class GameManager : MonoBehaviour
 
         var item = _gridSystem.GetItem(x, y);
         if (item == null) return;
+
+
+        if (AudioManager.Instance != null && _tapSfx != null) AudioManager.Instance.PlaySFX(_tapSfx);
 
         if (item is CubeItem)
         {
@@ -209,7 +236,16 @@ public class GameManager : MonoBehaviour
 
         UseMove();
         
-        // Increment global blast ID so obstacles know this is a single blast event
+        if (AudioManager.Instance != null && _matchSfx != null) 
+        {
+            AudioManager.Instance.PlaySFX(_matchSfx);
+        }
+        else
+        {
+            Debug.LogWarning($"[GameManager] Match SFX Failed. AudioMgr: {AudioManager.Instance != null}, Clip: {_matchSfx != null}");
+        }
+
+
         BlastIdTracker.NextBlast();
 
         bool createdRocket = (matches.Count >= _rocketMatchSize);
@@ -234,7 +270,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // If creating a rocket, animate cubes to the center first
+
         if (createdRocket)
         {
             yield return StartCoroutine(AnimateCubesToCenter(matches, x, y));
@@ -262,7 +298,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator AnimateCubesToCenter(List<IBoardItem> items, int targetX, int targetY)
     {
-        // Target position in local board coordinates
+
         Vector3 targetPos = new Vector3(targetX * _cellSize, targetY * _cellSize, 0);
         float duration = 0.2f;
 
@@ -270,7 +306,7 @@ public class GameManager : MonoBehaviour
         {
             if (item is AbstractBoardItem abi) 
             {
-                 // Move visual only
+
                  abi.MoveToPosition(targetPos, duration);
             }
         }
@@ -281,7 +317,7 @@ public class GameManager : MonoBehaviour
     {
         _isProcessingTurn = true;
         UseMove();
-
+        
         bool isCombo;
         _rocketSystem.TryProcessRocketClick(x, y, rocket, out isCombo);
         
@@ -323,12 +359,10 @@ public class GameManager : MonoBehaviour
 
         bool destroyed = false;
 
-        // CHECK FOR ROCKET CHAIN REACTION
+
         if (item is RocketItem rocket)
         {
             _rocketSystem.TriggerRocket(pos.x, pos.y, rocket);
-            // Rockets don't count as destroyed obstacles usually, but they do clear the cell.
-            // If you want to play a sound or effect, TriggerRocket handles the beams.
             return;
         }
 
@@ -519,6 +553,8 @@ public class GameManager : MonoBehaviour
 
         OnLevelWon?.Invoke();
 
+        if (AudioManager.Instance != null && _winSfx != null) AudioManager.Instance.PlaySFX(_winSfx);
+
         if (_boardParent != null) _boardParent.gameObject.SetActive(false);
         
         GameObject levelBtn = GameObject.Find("LevelButton");
@@ -528,6 +564,8 @@ public class GameManager : MonoBehaviour
     private void OnLevelLose()
     {
         OnLevelLost?.Invoke();
+        
+        if (AudioManager.Instance != null && _loseSfx != null) AudioManager.Instance.PlaySFX(_loseSfx);
 
         if (_boardParent != null) _boardParent.gameObject.SetActive(false);
 
@@ -551,7 +589,7 @@ public class GameManager : MonoBehaviour
 
         if (_currentLevel == null) return;
 
-        // Ensure the background is parented to the board for consistent local coordinates
+
         if (_gridBackgroundRenderer.transform.parent != _boardParent)
         {
             _gridBackgroundRenderer.transform.SetParent(_boardParent);
@@ -560,19 +598,18 @@ public class GameManager : MonoBehaviour
         _gridBackgroundRenderer.gameObject.SetActive(true);
         _gridBackgroundRenderer.drawMode = SpriteDrawMode.Sliced;
 
-        // Total grid dimensions based on counts and cell size
+
         float gridWidth = _currentLevel.grid_width * _cellSize;
         float gridHeight = _currentLevel.grid_height * _cellSize;
 
-        // Set size with symmetric padding
+
         _gridBackgroundRenderer.size = new Vector2(gridWidth + _backgroundPadding * 2, gridHeight + _backgroundPadding * 2);
 
-        // The items are at (0..W-1)*cellSize, (0..H-1)*cellSize
-        // Their geometric center is (W-1)*cellSize/2
+
         float centerX = (gridWidth - _cellSize) / 2f;
         float centerY = (gridHeight - _cellSize) / 2f;
         
-        // Position at center, slightly behind items
+
         _gridBackgroundRenderer.transform.localPosition = new Vector3(centerX, centerY, 0.5f);
         
         Debug.Log($"[GameManager] Grid Background Configured: GridSize({_currentLevel.grid_width}x{_currentLevel.grid_height}) " +
@@ -591,26 +628,21 @@ public class GameManager : MonoBehaviour
 
         if (_currentLevel == null) return;
 
-        // Calculate grid dimensions
+
         float gridWidth = _currentLevel.grid_width * _cellSize;
         float gridHeight = _currentLevel.grid_height * _cellSize;
 
-        // Center calculation
-        // Grid starts at (0,0) and goes to (gridWidth, gridHeight) locally
-        // We want the camera to look at the center of this area
+
         Vector3 centerPos = new Vector3(
             (gridWidth - _cellSize) / 2.0f, 
-            (gridHeight - _cellSize) / 2.0f, 
-            -10f // Standard camera Z offset
+            (gridHeight - _cellSize) / 2.0f
         );
         
         Vector3 centerWorldPos = _boardParent.TransformPoint(centerPos);
-        centerWorldPos.z = -10f; // Keep camera back
+        centerWorldPos.z = -10f;
         _camera.transform.position = centerWorldPos;
 
-        // Calculate Orthographic Size
-        // We want to fit 'gridHeight + padding' vertically
-        // OR 'gridWidth + padding' horizontally, whichever is constrained.
+
         
         float targetHeight = gridHeight + _cameraPadding * 2;
         float targetWidth = gridWidth + _cameraPadding * 2;
@@ -620,12 +652,12 @@ public class GameManager : MonoBehaviour
 
         if (screenRatio >= targetRatio)
         {
-            // Screen is wider than target, so height is the constraint
+
             _camera.orthographicSize = targetHeight / 2.0f;
         }
         else
         {
-            // Screen is narrower than target, so width is the constraint
+
             float differenceInSize = targetRatio / screenRatio;
             _camera.orthographicSize = targetHeight / 2.0f * differenceInSize;
         }

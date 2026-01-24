@@ -38,25 +38,25 @@ public class GravitySystem
         _grid.SetItem(x, y, null);
         _grid.SetItem(x, y - 1, item);
 
-        // Calculate Target World Position
+
         Vector3 targetPos = new Vector3(
             x * _cellSize,
             (y - 1) * _cellSize,
             0f
         );
 
-        // Check if item supports visual movement
+
         if (item is AbstractBoardItem abi)
         {
-            // 0.15f duration for smooth fall (faster than the old 0.15f wait per step)
+
             abi.MoveToPosition(targetPos, 0.15f); 
             
-            // Also update internal X,Y properties to keep consistency
+
             abi.SetPosition(x, y - 1);
         }
         else
         {
-            // Fallback for non-AbstractBoardItem implementations
+
             Transform t = item.GetGameObject().transform;
             t.localPosition = targetPos;
         }

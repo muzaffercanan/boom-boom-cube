@@ -9,10 +9,11 @@ public class RocketSystem
     private readonly Transform _boardParent;
     private readonly float _cellSize;
     private readonly MonoBehaviour _coroutineRunner;
+    private readonly AudioClip _rocketSfx;
 
     private System.Action<Vector2Int> _onDamageRequest;
 
-    public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, float cellSize, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest)
+    public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, float cellSize, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null)
     {
         _gridSystem = grid;
         _itemFactory = factory;
@@ -20,6 +21,7 @@ public class RocketSystem
         _cellSize = cellSize;
         _coroutineRunner = runner;
         _onDamageRequest = onDamageRequest;
+        _rocketSfx = rocketSfx;
     }
 
     public bool TryProcessRocketClick(int x, int y, RocketItem clickedRocket, out bool isCombo)
@@ -56,7 +58,7 @@ public class RocketSystem
 
     public void TriggerRocket(int x, int y, RocketItem rocket)
     {
-        // Prevent infinite recursion if somehow called on already destroyed item
+
         if (rocket == null) return;
 
         _gridSystem.SetItem(x, y, null);
@@ -72,14 +74,14 @@ public class RocketSystem
 
     private void ProcessRocketCombo(RocketItem r1, RocketItem r2)
     {
-        // 1. Remove the items from the grid and destroy visuals
+
         _gridSystem.SetItem(r1.X, r1.Y, null);
         _gridSystem.SetItem(r2.X, r2.Y, null);
         
         Object.Destroy(r1.GetGameObject());
         Object.Destroy(r2.GetGameObject());
 
-        // Use the first rocket's position as the center of the combo
+
         int centerX = r1.X;
         int centerY = r1.Y;
 
@@ -99,26 +101,26 @@ public class RocketSystem
             }
         }
 
-        // 3. Spawn 3 Rows of Horizontal Rockets (Lines: y-1, y, y+1)
+
         for (int offset = -1; offset <= 1; offset++)
         {
             int rowY = centerY + offset;
-            // Only spawn if the row is within grid bounds
+
             if (rowY >= 0 && rowY < _gridSystem.Height)
             {
-                // Spawn Horizontal Beams starting from centerX
+
                 SpawnRocketBeams(centerX, rowY, isHorizontal: true, isCombo: true);
             }
         }
 
-        // 4. Spawn 3 Columns of Vertical Rockets (Lines: x-1, x, x+1)
+
         for (int offset = -1; offset <= 1; offset++)
         {
             int colX = centerX + offset;
-            // Only spawn if the column is within grid bounds
+
             if (colX >= 0 && colX < _gridSystem.Width)
             {
-                // Spawn Vertical Beams starting from centerY
+
                 SpawnRocketBeams(colX, centerY, isHorizontal: false, isCombo: true);
             }
         }
@@ -154,14 +156,14 @@ public class RocketSystem
             }
         }
 
-        // Apply bottom-left origin conversion (Standard Cartesian)
+
         float worldY = startY * _cellSize;
         projectileObj.transform.localPosition = new Vector3(startX * _cellSize, worldY, -1f);
 
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();
 
-        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, maxRange);
+        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange);
     }
 
     private void OnProjectileHitCell(int x, int y)

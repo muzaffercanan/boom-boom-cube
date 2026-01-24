@@ -63,7 +63,7 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
     
     public virtual void PlayDestroyEffect(DamageType damageType)
     {
-        // Base implementation does nothing or generic effect
+
     }
 
     protected void SpawnParticle(ParticleSystem prefab, Color? overrideColor = null)

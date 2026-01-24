@@ -62,8 +62,7 @@ public class LevelLoader
                         var root = go.transform.root;
                         bool isRootObj = (go.transform == go.transform.root);
 
-                        // FIX: Grid origin is bottom-left (0,0), matches World Space (0,0)
-                        // JSON grid array: index 0 = bottom-left, row-major horizontal
+
                         float worldY = y * _cellSize;
                         go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
 
