@@ -97,6 +97,65 @@ public class UIManager : MonoBehaviour
             view.SetGoal(icon, count);
             _goalViews[id] = view;
         }
+
+        StartCoroutine(UpdateLayoutRoutine(goals.Count));
+    }
+
+    private System.Collections.IEnumerator UpdateLayoutRoutine(int itemCount)
+    {
+        if (_goalsContainer == null) yield break;
+
+        // Once Unity'nin kendi layout hesaplamalarini yapmasini bekleyelim (Layout Rebuild)
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
+        yield return new WaitForEndOfFrame();
+
+        GridLayoutGroup grid = _goalsContainer.GetComponent<GridLayoutGroup>();
+        ContentSizeFitter fitter = _goalsContainer.GetComponent<ContentSizeFitter>();
+        
+        if (grid != null && fitter != null)
+        {
+            float maxAvailableWidth = 500f; 
+            if (_goalsContainer.parent is RectTransform parentRect)
+            {
+                maxAvailableWidth = parentRect.rect.width; 
+            }
+
+            float itemWidth = grid.cellSize.x + grid.spacing.x;
+            float totalWidthNeeded = itemCount * itemWidth;
+            totalWidthNeeded += grid.padding.left + grid.padding.right;
+
+            if (totalWidthNeeded <= maxAvailableWidth)
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            }
+            else
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                _goalsContainer.sizeDelta = new Vector2(maxAvailableWidth, _goalsContainer.sizeDelta.y);
+            }
+        }
+        
+        // Layout degisikliklerinin oturmasi icin tekrar rebuild yapabiliriz veya direkt pozisyonu verebiliriz.
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
+        yield return new WaitForEndOfFrame(); // Bir frame daha bekleyip pozisyonu cakiyoruz.
+
+        // -- Pozisyon Ayarlamasi --
+        Vector2 targetPos = _goalsContainer.anchoredPosition;
+
+        if (itemCount == 1)
+        {
+            targetPos = new Vector2(-107f, 455f);
+        }
+        else if (itemCount == 2)
+        {
+            targetPos = new Vector2(-435f, 642f);
+        }
+        else
+        {
+            targetPos = new Vector2(-433f, 708f);
+        }
+
+        _goalsContainer.anchoredPosition = targetPos;
     }
 
     private void OnMovesUpdated(int moves)
