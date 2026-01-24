@@ -144,7 +144,7 @@ public class UIManager : MonoBehaviour
 
         if (itemCount == 1)
         {
-            targetPos = new Vector2(-107f, 455f);
+            targetPos = new Vector2(-371f, 654f);
         }
         else if (itemCount == 2)
         {

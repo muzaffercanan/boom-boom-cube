@@ -628,10 +628,8 @@ public class GameManager : MonoBehaviour
 
         if (_currentLevel == null) return;
 
-
         float gridWidth = _currentLevel.grid_width * _cellSize;
         float gridHeight = _currentLevel.grid_height * _cellSize;
-
 
         Vector3 centerPos = new Vector3(
             (gridWidth - _cellSize) / 2.0f, 
@@ -642,8 +640,6 @@ public class GameManager : MonoBehaviour
         centerWorldPos.z = -10f;
         _camera.transform.position = centerWorldPos;
 
-
-        
         float targetHeight = gridHeight + _cameraPadding * 2;
         float targetWidth = gridWidth + _cameraPadding * 2;
 
@@ -652,12 +648,10 @@ public class GameManager : MonoBehaviour
 
         if (screenRatio >= targetRatio)
         {
-
             _camera.orthographicSize = targetHeight / 2.0f;
         }
         else
         {
-
             float differenceInSize = targetRatio / screenRatio;
             _camera.orthographicSize = targetHeight / 2.0f * differenceInSize;
         }
