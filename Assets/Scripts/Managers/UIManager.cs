@@ -131,7 +131,7 @@ public class UIManager : MonoBehaviour
     private System.Collections.IEnumerator AutoLoadMainScene(float delay)
     {
         yield return new WaitForSeconds(delay);
-        SceneManager.LoadScene("MainScene");
+        LoadSceneSafe("MainScene");
     }
 
     private void OnLevelLose()
@@ -149,12 +149,24 @@ public class UIManager : MonoBehaviour
 
     private void OnTryAgainClicked()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        LoadSceneSafe(SceneManager.GetActiveScene().name);
     }
 
     private void OnMainMenuClicked()
     {
-        SceneManager.LoadScene("MainScene");
+        LoadSceneSafe("MainScene");
+    }
+
+    private void LoadSceneSafe(string sceneName)
+    {
+        if (SceneTransitionManager.Instance != null)
+        {
+            SceneTransitionManager.Instance.LoadScene(sceneName);
+        }
+        else
+        {
+            SceneManager.LoadScene(sceneName);
+        }
     }
 }
 

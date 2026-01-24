@@ -78,8 +78,18 @@ public class LevelButtonController : MonoBehaviour
         
         Debug.Log($"[LevelButtonController] Loading Level {_targetLevel}");
         
-        // We need to pass the level index to the game scene.
+        // Pass the level index to the game scene via PlayerPrefs
         PlayerPrefs.SetInt("SelectedLevelForGame", _targetLevel);
-        SceneManager.LoadScene("LevelScene");
+        
+        // Use Transition Manager
+        if (SceneTransitionManager.Instance != null)
+        {
+            SceneTransitionManager.Instance.LoadScene("LevelScene");
+        }
+        else
+        {
+            // Fallback
+            SceneManager.LoadScene("LevelScene");
+        }
     }
 }
