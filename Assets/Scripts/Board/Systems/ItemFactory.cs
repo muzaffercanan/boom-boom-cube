@@ -13,6 +13,9 @@ public class ItemFactory : ScriptableObject
 
     public List<ItemPrefabMap> mappings;
 
+    [Header("Settings")]
+    [SerializeField] private float _itemScale = 0.95f;
+
     private static readonly string[] RandomColors = { "r", "g", "b", "y" };
 
     public GameObject GetPrefab(string id)
@@ -61,6 +64,7 @@ public class ItemFactory : ScriptableObject
         if (prefab == null) return null;
 
         GameObject instance = Instantiate(prefab, parent);
+        instance.transform.localScale = Vector3.one * _itemScale;
         var boardItem = instance.GetComponent<IBoardItem>();
 
         if (boardItem is CubeItem cubeItem)

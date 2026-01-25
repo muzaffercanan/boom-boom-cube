@@ -105,7 +105,8 @@ public class UIManager : MonoBehaviour
     {
         if (_goalsContainer == null) yield break;
 
-        // Once Unity'nin kendi layout hesaplamalarini yapmasini bekleyelim (Layout Rebuild)
+
+
         LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
         yield return new WaitForEndOfFrame();
 
@@ -134,12 +135,11 @@ public class UIManager : MonoBehaviour
                 _goalsContainer.sizeDelta = new Vector2(maxAvailableWidth, _goalsContainer.sizeDelta.y);
             }
         }
-        
-        // Layout degisikliklerinin oturmasi icin tekrar rebuild yapabiliriz veya direkt pozisyonu verebiliriz.
-        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
-        yield return new WaitForEndOfFrame(); // Bir frame daha bekleyip pozisyonu cakiyoruz.
 
-        // -- Pozisyon Ayarlamasi --
+        
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
+        yield return new WaitForEndOfFrame();
+
         Vector2 targetPos = _goalsContainer.anchoredPosition;
 
         if (itemCount == 1)

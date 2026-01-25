@@ -85,8 +85,6 @@ public class RocketSystem
         int centerX = r1.X;
         int centerY = r1.Y;
 
-        // 2. Directly damage/clear the central 3x3 area
-        // (Since projectiles move outwards and might skip their spawn cell)
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)

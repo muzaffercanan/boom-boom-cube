@@ -39,3 +39,4 @@ MonoBehaviour:
     prefab: {fileID: 3530580351125447187, guid: 30e2115157a078e4383c941bc9977c8f, type: 3}
   - id: rocket_h_part_right
     prefab: {fileID: 3951418157652007565, guid: 53dc49c59db024845bf480bb85c79b8b, type: 3}
+  _itemScale: 0.65

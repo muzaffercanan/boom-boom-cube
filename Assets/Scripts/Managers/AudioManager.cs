@@ -1,10 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary>
-/// Manages background music and sound effects globally.
-/// Persists across scenes.
-/// </summary>
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
@@ -21,7 +17,6 @@ public class AudioManager : MonoBehaviour
 
     private void Awake()
     {
-        // Singleton Pattern
         if (Instance == null)
         {
             Instance = this;
@@ -36,7 +31,6 @@ public class AudioManager : MonoBehaviour
 
     private void InitializeAudioSources()
     {
-        // Ensure sources exist if not assigned
         if (_musicSource == null)
         {
             GameObject musicObj = new GameObject("MusicSource");
@@ -64,45 +58,31 @@ public class AudioManager : MonoBehaviour
         if (_sfxSource) _sfxSource.volume = _sfxVolume;
     }
 
-    /// <summary>
-    /// Plays a background music clip. Does not restart if the same clip is already playing.
-    /// </summary>
     public void PlayMusic(AudioClip clip)
     {
         if (clip == null) return;
 
-        // Don't restart if already playing
         if (_musicSource.isPlaying && _musicSource.clip == clip) return;
 
         _musicSource.clip = clip;
         _musicSource.Play();
     }
 
-    /// <summary>
-    /// Plays a sound effect once.
-    /// </summary>
     public void PlaySFX(AudioClip clip, float volumeScale = 1f)
     {
         if (clip == null) return;
         _sfxSource.PlayOneShot(clip, volumeScale * _sfxVolume);
     }
 
-    /// <summary>
-    /// Sets music volume (0-1).
-    /// </summary>
     public void SetMusicVolume(float volume)
     {
         _musicVolume = Mathf.Clamp01(volume);
         if (_musicSource) _musicSource.volume = _musicVolume;
     }
 
-    /// <summary>
-    /// Sets SFX volume (0-1).
-    /// </summary>
     public void SetSFXVolume(float volume)
     {
         _sfxVolume = Mathf.Clamp01(volume);
-        // Note: PlayOneShot doesn't update active clips, but next clips will use this
     }
     private void OnValidate()
     {

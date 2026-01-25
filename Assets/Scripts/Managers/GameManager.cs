@@ -13,7 +13,8 @@ public class GameManager : MonoBehaviour
 
     
     [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
-    [SerializeField] private float _backgroundPadding = 1.0f;
+    [SerializeField] private float _backgroundPaddingX = 0.05f;
+    [SerializeField] private float _backgroundPaddingY = 0.05f;
 
 
     public static event Action<LevelData, Dictionary<string, int>> OnLevelLoaded;
@@ -590,9 +591,9 @@ public class GameManager : MonoBehaviour
         if (_currentLevel == null) return;
 
 
-        if (_gridBackgroundRenderer.transform.parent != _boardParent)
+        if (_gridBackgroundRenderer.transform.parent != null)
         {
-            _gridBackgroundRenderer.transform.SetParent(_boardParent);
+            _gridBackgroundRenderer.transform.SetParent(null);
         }
 
         _gridBackgroundRenderer.gameObject.SetActive(true);
@@ -603,23 +604,27 @@ public class GameManager : MonoBehaviour
         float gridHeight = _currentLevel.grid_height * _cellSize;
 
 
-        _gridBackgroundRenderer.size = new Vector2(gridWidth + _backgroundPadding * 2, gridHeight + _backgroundPadding * 2);
+        _gridBackgroundRenderer.size = new Vector2(gridWidth + _backgroundPaddingX * 2, gridHeight + _backgroundPaddingY * 2);
 
 
         float centerX = (gridWidth - _cellSize) / 2f;
         float centerY = (gridHeight - _cellSize) / 2f;
         
+        Vector3 localCenter = new Vector3(centerX, centerY, 0f);
+        Vector3 worldCenter = _boardParent.TransformPoint(localCenter);
 
-        _gridBackgroundRenderer.transform.localPosition = new Vector3(centerX, centerY, 0.5f);
+        worldCenter.z = 0.5f;
+
+        _gridBackgroundRenderer.transform.position = worldCenter;
+        _gridBackgroundRenderer.transform.localScale = Vector3.one;
         
-        Debug.Log($"[GameManager] Grid Background Configured: GridSize({_currentLevel.grid_width}x{_currentLevel.grid_height}) " +
-                  $"CellSize({_cellSize}) Size({_gridBackgroundRenderer.size.x}x{_gridBackgroundRenderer.size.y}) " +
-                  $"Center({centerX}, {centerY})");
+        Debug.Log($"[GameManager] Grid Background Configured: Size({_gridBackgroundRenderer.size}) WorldPos({worldCenter})");
     }
 
     [Header("Camera")]
     [SerializeField] private Camera _camera;
     [SerializeField] private float _cameraPadding = 2.0f;
+    [SerializeField] private float _cameraOffsetY = 100.0f;
 
     private void UpdateCamera()
     {
@@ -637,6 +642,7 @@ public class GameManager : MonoBehaviour
         );
         
         Vector3 centerWorldPos = _boardParent.TransformPoint(centerPos);
+        centerWorldPos.y += _cameraOffsetY;
         centerWorldPos.z = -10f;
         _camera.transform.position = centerWorldPos;
 
