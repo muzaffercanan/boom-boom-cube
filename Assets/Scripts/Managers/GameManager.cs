@@ -557,6 +557,7 @@ public class GameManager : MonoBehaviour
         if (AudioManager.Instance != null && _winSfx != null) AudioManager.Instance.PlaySFX(_winSfx);
 
         if (_boardParent != null) _boardParent.gameObject.SetActive(false);
+        if (_gridBackgroundRenderer != null) _gridBackgroundRenderer.gameObject.SetActive(false);
         
         GameObject levelBtn = GameObject.Find("LevelButton");
         if (levelBtn != null) levelBtn.SetActive(true);
@@ -569,6 +570,7 @@ public class GameManager : MonoBehaviour
         if (AudioManager.Instance != null && _loseSfx != null) AudioManager.Instance.PlaySFX(_loseSfx);
 
         if (_boardParent != null) _boardParent.gameObject.SetActive(false);
+        if (_gridBackgroundRenderer != null) _gridBackgroundRenderer.gameObject.SetActive(false);
 
         GameObject levelBtn = GameObject.Find("LevelButton");
         if (levelBtn != null) levelBtn.SetActive(true);
