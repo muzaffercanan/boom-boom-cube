@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boom Boom Cube - Mimari Haritası</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .icon {
+            font-size: 1.8rem;
+        }
+
+        /* ===== ORCHESTRATOR DIAGRAM ===== */
+        .orchestrator-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+        }
+
+        .boss-node {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 10px 40px rgba(255, 107, 107, 0.4);
+            position: relative;
+            z-index: 10;
+        }
+
+        .boss-node::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 30px;
+            background: linear-gradient(to bottom, #ff6b6b, #4ecdc4);
+        }
+
+        .workers-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            position: relative;
+        }
+
+        .worker-group {
+            background: rgba(78, 205, 196, 0.1);
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 200px;
+        }
+
+        .worker-group-title {
+            font-size: 0.85rem;
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .worker-node {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .worker-node:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(78, 205, 196, 0.3);
+        }
+
+        .worker-node:last-child {
+            margin-bottom: 0;
+        }
+
+        .worker-node small {
+            display: block;
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        .factory-node {
+            background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+        }
+
+        .data-node {
+            background: linear-gradient(135deg, #fdcb6e, #f39c12);
+            color: #1a1a2e;
+        }
+
+        /* ===== CLASS HIERARCHY ===== */
+        .class-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 30px 0;
+        }
+
+        .tree-level {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            position: relative;
+        }
+
+        .class-box {
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid;
+            border-radius: 12px;
+            padding: 15px 25px;
+            text-align: center;
+            min-width: 150px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+
+        .class-box:hover {
+            transform: scale(1.05);
+        }
+
+        .class-box.abstract {
+            border-color: #e74c3c;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.2);
+        }
+
+        .class-box.concrete {
+            border-color: #3498db;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.2);
+        }
+
+        .class-box.interface {
+            border-color: #2ecc71;
+            border-style: dashed;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
+        }
+
+        .class-box.obstacle {
+            border-color: #f39c12;
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.2);
+        }
+
+        .class-name {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .class-type {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+
+        .class-members {
+            font-size: 0.8rem;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: left;
+        }
+
+        .class-members code {
+            display: block;
+            margin: 3px 0;
+            color: #74b9ff;
+        }
+
+        .connector {
+            width: 3px;
+            height: 40px;
+            background: linear-gradient(to bottom, transparent, #e74c3c);
+            margin: 0 auto;
+        }
+
+        .horizontal-connector {
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .horizontal-connector::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            height: 3px;
+            background: #e74c3c;
+        }
+
+        /* ===== INTERFACE BADGES ===== */
+        .interface-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .badge.matchable {
+            background: #2ecc71;
+            color: #fff;
+        }
+
+        .badge.damageable {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .badge.fallable {
+            background: #3498db;
+            color: #fff;
+        }
+
+        /* ===== OBSERVER PATTERN ===== */
+        .observer-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .observer-actor {
+            text-align: center;
+        }
+
+        .actor-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .actor-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .actor-role {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .arrow-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .arrow {
+            font-size: 2rem;
+            color: #4ecdc4;
+            animation: pulse 1.5s infinite;
+        }
+
+        .arrow-label {
+            font-size: 0.75rem;
+            color: #4ecdc4;
+            max-width: 100px;
+            text-align: center;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: translateX(5px);
+            }
+        }
+
+        /* ===== DESIGN PATTERNS TABLE ===== */
+        .patterns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .pattern-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 4px solid;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .pattern-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .pattern-card.factory {
+            border-color: #a29bfe;
+        }
+
+        .pattern-card.observer {
+            border-color: #4ecdc4;
+        }
+
+        .pattern-card.strategy {
+            border-color: #ff6b6b;
+        }
+
+        .pattern-card.di {
+            border-color: #fdcb6e;
+        }
+
+        .pattern-card.singleton {
+            border-color: #fd79a8;
+        }
+
+        .pattern-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .pattern-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .pattern-location {
+            font-size: 0.85rem;
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+
+        .pattern-desc {
+            font-size: 0.9rem;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        /* ===== LEGEND ===== */
+        .legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+        }
+
+        .legend-color.abstract {
+            background: #e74c3c;
+        }
+
+        .legend-color.concrete {
+            background: #3498db;
+        }
+
+        .legend-color.interface {
+            background: #2ecc71;
+            border: 2px dashed #2ecc71;
+            background: transparent;
+        }
+
+        .legend-color.obstacle {
+            background: #f39c12;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🏗️ Boom Boom Cube - Mimari Haritası</h1>
+        <p class="subtitle">Projendeki sınıf ilişkileri, tasarım desenleri ve veri akışının görsel dökümü</p>
+
+        <!-- SECTION 1: ORCHESTRATOR -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🧠</span> 1. Yönetim Katmanı (Orchestrator Model)</h2>
+            <p style="color: #888; margin-bottom: 20px;">GameManager patron, sistemler işçi. Patron iş yapmaz, iş
+                yaptırır.</p>
+
+            <div class="orchestrator-diagram">
+                <div class="boss-node">
+                    🎮 GameManager<br>
+                    <small style="font-weight: normal; opacity: 0.8;">(Orchestrator / Şef)</small>
+                </div>
+
+                <div class="workers-container">
+                    <div class="worker-group">
+                        <div class="worker-group-title">📊 Veri Katmanı</div>
+                        <div class="worker-node data-node">
+                            GridSystem
+                            <small>2D Array Verisi</small>
+                        </div>
+                        <div class="worker-node data-node">
+                            LevelData
+                            <small>JSON Dosyası</small>
+                        </div>
+                    </div>
+
+                    <div class="worker-group">
+                        <div class="worker-group-title">⚙️ İşçi Sistemler (Pure C#)</div>
+                        <div class="worker-node">
+                            MatchSystem
+                            <small>Eşleşme Algoritması</small>
+                        </div>
+                        <div class="worker-node">
+                            GravitySystem
+                            <small>Yerçekimi Hesaplayıcı</small>
+                        </div>
+                        <div class="worker-node">
+                            RocketSystem
+                            <small>Roket Mantığı</small>
+                        </div>
+                        <div class="worker-node">
+                            LevelLoader
+                            <small>Harita Yükleyici</small>
+                        </div>
+                    </div>
+
+                    <div class="worker-group">
+                        <div class="worker-group-title">🏭 Üretim</div>
+                        <div class="worker-node factory-node">
+                            ItemFactory
+                            <small>ScriptableObject</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div style="width: 30px; height: 3px; background: #ff6b6b;"></div>
+                    <span>Sahiplik (Has-A)</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 30px; height: 3px; background: #4ecdc4; border-style: dashed;"></div>
+                    <span>Constructor Injection</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: CLASS HIERARCHY -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🧬</span> 2. Sınıf Hiyerarşisi (Inheritance & Interfaces)</h2>
+            <p style="color: #888; margin-bottom: 20px;">Nesneler arasındaki "Kim Kimdir?" (Is-A) ilişkisi.</p>
+
+            <div class="class-tree">
+                <!-- Level 0: MonoBehaviour -->
+                <div class="tree-level">
+                    <div class="class-box" style="border-color: #9b59b6;">
+                        <div class="class-name">MonoBehaviour</div>
+                        <div class="class-type">Unity Base Class</div>
+                    </div>
+                </div>
+
+                <div class="connector"></div>
+
+                <!-- Level 1: AbstractBoardItem -->
+                <div class="tree-level">
+                    <div class="class-box abstract">
+                        <div class="class-name">AbstractBoardItem</div>
+                        <div class="class-type">Abstract Class</div>
+                        <div class="class-members">
+                            <code>+ int X, Y</code>
+                            <code>+ Init()</code>
+                            <code>+ MoveToPosition()</code>
+                            <code>+ PlayDestroyEffect()</code>
+                        </div>
+                        <div class="interface-badges">
+                            <span class="badge" style="background: #9b59b6;">IBoardItem</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="connector"></div>
+                <div class="horizontal-connector" style="width: 80%;"></div>
+
+                <!-- Level 2: Main Types -->
+                <div class="tree-level">
+                    <div class="class-box concrete">
+                        <div class="class-name">CubeItem</div>
+                        <div class="class-type">Concrete Class</div>
+                        <div class="class-members">
+                            <code>+ CubeColor Color</code>
+                        </div>
+                        <div class="interface-badges">
+                            <span class="badge matchable">IMatchable</span>
+                            <span class="badge fallable">IFallable</span>
+                        </div>
+                    </div>
+
+                    <div class="class-box obstacle">
+                        <div class="class-name">ObstacleItem</div>
+                        <div class="class-type">Abstract Class</div>
+                        <div class="class-members">
+                            <code>+ virtual TakeDamage()</code>
+                            <code>+ int Health</code>
+                        </div>
+                        <div class="interface-badges">
+                            <span class="badge damageable">IDamageable</span>
+                        </div>
+                    </div>
+
+                    <div class="class-box concrete">
+                        <div class="class-name">RocketItem</div>
+                        <div class="class-type">Concrete Class</div>
+                        <div class="class-members">
+                            <code>+ bool IsHorizontal</code>
+                        </div>
+                        <div class="interface-badges">
+                            <span class="badge fallable">IFallable</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; margin-left: 150px;">
+                    <div class="connector" style="height: 20px;"></div>
+                </div>
+
+                <!-- Level 3: Obstacle Children -->
+                <div class="tree-level" style="margin-top: 10px;">
+                    <div class="class-box obstacle" style="margin-left: 150px;">
+                        <div class="class-name">VaseItem</div>
+                        <div class="class-type">Concrete (2 HP, Düşer)</div>
+                        <div class="interface-badges">
+                            <span class="badge fallable">IFallable</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #888; margin-top: 5px;">Tek blast = max 1 hasar</div>
+                    </div>
+
+                    <div class="class-box obstacle">
+                        <div class="class-name">BoxItem</div>
+                        <div class="class-type">Concrete (1 HP, Sabit)</div>
+                        <div style="font-size: 0.7rem; color: #f39c12; margin-top: 10px;">
+                            ⚠️ Düşmez (IFallable yok)
+                        </div>
+                    </div>
+
+                    <div class="class-box obstacle">
+                        <div class="class-name">StoneItem</div>
+                        <div class="class-type">Concrete (1 HP, Sabit)</div>
+                        <div style="font-size: 0.7rem; color: #e74c3c; margin-top: 10px;">
+                            ❌ MatchBlast hasarı ALMAZ<br>
+                            ✅ RocketHit hasarı alır<br>
+                            ❌ Düşmez (IFallable yok)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interfaces -->
+            <div style="margin-top: 40px; padding: 20px; background: rgba(46, 204, 113, 0.1); border-radius: 15px;">
+                <h3 style="color: #2ecc71; margin-bottom: 15px;">🔌 Interface'ler (Yetenekler)</h3>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div class="class-box interface" style="border-color: #9b59b6;">
+                        <div class="class-name">IBoardItem</div>
+                        <div class="class-members">
+                            <code>+ Init(x, y)</code>
+                            <code>+ GetItemType()</code>
+                            <code>+ MoveToPosition()</code>
+                        </div>
+                        <p style="font-size: 0.75rem; color: #9b59b6; margin-top: 10px;">"Ben grid item'ıyım" (Base)</p>
+                    </div>
+                    <div class="class-box interface">
+                        <div class="class-name">IMatchable</div>
+                        <div class="class-members">
+                            <code>+ GetColor(): CubeColor</code>
+                            <code>+ CanMatch(): bool</code>
+                        </div>
+                        <p style="font-size: 0.75rem; color: #2ecc71; margin-top: 10px;">"Ben eşleşebilirim" (CubeItem)
+                        </p>
+                    </div>
+                    <div class="class-box interface" style="border-color: #e74c3c;">
+                        <div class="class-name">IDamageable</div>
+                        <div class="class-members">
+                            <code>+ TakeDamage(type): bool</code>
+                            <code>+ Health: int</code>
+                        </div>
+                        <p style="font-size: 0.75rem; color: #e74c3c; margin-top: 10px;">"Ben hasar alabilirim"
+                            (Obstacles)</p>
+                    </div>
+                    <div class="class-box interface" style="border-color: #3498db;">
+                        <div class="class-name">IFallable</div>
+                        <div class="class-members">
+                            <code>+ CanFall(): bool</code>
+                            <code>+ FallTo(y, dur)</code>
+                        </div>
+                        <p style="font-size: 0.75rem; color: #3498db; margin-top: 10px;">"Ben düşebilirim" (Cube,
+                            Rocket, Vase)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color abstract"></div>
+                    <span>Abstract Class</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color concrete"></div>
+                    <span>Concrete Class</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color interface"></div>
+                    <span>Interface</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color obstacle"></div>
+                    <span>Obstacle Classes</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: OBSERVER PATTERN -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📡</span> 3. İletişim Akışı (Observer Pattern)</h2>
+            <p style="color: #888; margin-bottom: 20px;">GameManager ve UIManager birbirini tanımaz, Event üzerinden
+                haberleşirler.</p>
+
+            <div class="observer-diagram">
+                <div class="observer-actor">
+                    <div class="actor-icon">👆</div>
+                    <div class="actor-name">Oyuncu</div>
+                    <div class="actor-role">Küpe Tıklar</div>
+                </div>
+
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                    <div class="arrow-label">Click Event</div>
+                </div>
+
+                <div class="observer-actor">
+                    <div class="actor-icon">🎮</div>
+                    <div class="actor-name">GameManager</div>
+                    <div class="actor-role">Mantık İşler</div>
+                </div>
+
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                    <div class="arrow-label">MatchSystem.FindMatches()</div>
+                </div>
+
+                <div class="observer-actor">
+                    <div class="actor-icon">⚙️</div>
+                    <div class="actor-name">İşçi Sistemler</div>
+                    <div class="actor-role">Match, Gravity...</div>
+                </div>
+            </div>
+
+            <div
+                style="text-align: center; padding: 30px; background: linear-gradient(90deg, rgba(78, 205, 196, 0.1), rgba(78, 205, 196, 0.3), rgba(78, 205, 196, 0.1)); border-radius: 15px; margin: 20px 0;">
+                <div style="font-size: 1.2rem; color: #4ecdc4; margin-bottom: 10px;">🔔 OBSERVER PATTERN</div>
+                <div style="font-size: 2rem; margin: 15px 0;">
+                    <code style="background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 10px;">
+                        OnMovesUpdated?.Invoke(14)
+                    </code>
+                </div>
+                <div style="color: #888;">Event fırlatılır, dinleyen herkes güncellenir</div>
+            </div>
+
+            <div class="observer-diagram">
+                <div class="observer-actor">
+                    <div class="actor-icon">📢</div>
+                    <div class="actor-name">C# Event</div>
+                    <div class="actor-role">Yayın Yapar</div>
+                </div>
+
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                    <div class="arrow-label">Subscribe</div>
+                </div>
+
+                <div class="observer-actor">
+                    <div class="actor-icon">📱</div>
+                    <div class="actor-name">UIManager</div>
+                    <div class="actor-role">Ekranı Günceller</div>
+                </div>
+
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                    <div class="arrow-label">Update UI</div>
+                </div>
+
+                <div class="observer-actor">
+                    <div class="actor-icon">🖥️</div>
+                    <div class="actor-name">Ekran</div>
+                    <div class="actor-role">"14" Yazar</div>
+                </div>
+            </div>
+
+            <div
+                style="text-align: center; padding: 15px; background: rgba(231, 76, 60, 0.1); border-radius: 10px; color: #e74c3c;">
+                ⚠️ <strong>Kritik:</strong> GameManager, UIManager'ın varlığından haberdar bile değil! (Decoupled)
+            </div>
+        </div>
+
+        <!-- SECTION 4: DESIGN PATTERNS -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🧩</span> 4. Tasarım Desenleri (Design Patterns)</h2>
+            <p style="color: #888; margin-bottom: 20px;">Projende kullanılan profesyonel yazılım desenleri.</p>
+
+            <div class="patterns-grid">
+                <div class="pattern-card factory">
+                    <div class="pattern-icon">🏭</div>
+                    <div class="pattern-name">Factory Pattern</div>
+                    <div class="pattern-location">📍 ItemFactory.cs</div>
+                    <div class="pattern-desc">
+                        "Bana kırmızı küp ver" dersin, nasıl yaratıldığını bilmezsin.
+                        Prefab değişirse sadece Factory'yi güncelersin.
+                    </div>
+                </div>
+
+                <div class="pattern-card observer">
+                    <div class="pattern-icon">📡</div>
+                    <div class="pattern-name">Observer Pattern</div>
+                    <div class="pattern-location">📍 GameManager Events</div>
+                    <div class="pattern-desc">
+                        OnLevelLoaded, OnMovesUpdated, OnLevelWon gibi eventler.
+                        UI, oyun mantığına bağlı değil, sadece eventleri dinler.
+                    </div>
+                </div>
+
+                <div class="pattern-card strategy">
+                    <div class="pattern-icon">🎭</div>
+                    <div class="pattern-name">Strategy Pattern</div>
+                    <div class="pattern-location">📍 PlayDestroyEffect()</div>
+                    <div class="pattern-desc">
+                        Her item kendi patlama stratejisini override eder.
+                        Küp farklı, Vazo farklı patlar.
+                    </div>
+                </div>
+
+                <div class="pattern-card di">
+                    <div class="pattern-icon">💉</div>
+                    <div class="pattern-name">Dependency Injection</div>
+                    <div class="pattern-location">📍 GameManager.Start()</div>
+                    <div class="pattern-desc">
+                        new MatchSystem(gridSystem) → GridSystem parametre olarak verilir,
+                        içeride Find ile aranmaz. Testability artırır.
+                    </div>
+                </div>
+
+                <div class="pattern-card singleton">
+                    <div class="pattern-icon">👑</div>
+                    <div class="pattern-name">Singleton Pattern</div>
+                    <div class="pattern-location">📍 AudioManager.cs</div>
+                    <div class="pattern-desc">
+                        Oyunun her yerinden erişilebilen tek ses yöneticisi.
+                        DontDestroyOnLoad ile sahneler arası yaşar.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 5: FULL ER DIAGRAM (Reorganized) -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🗺️</span> 5. Tam Varlık-İlişki Diyagramı (Complete ER Diagram)
+            </h2>
+            <p style="color: #888; margin-bottom: 20px;">Projedeki tüm sınıflar, katmanlarına göre düzenlenmiş
+                hiyerarşik görünüm.</p>
+
+            <style>
+                .er-layer {
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: rgba(0, 0, 0, 0.2);
+                    border-radius: 15px;
+                }
+
+                .er-layer-title {
+                    font-size: 1.1rem;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .er-layer.managers .er-layer-title {
+                    border-color: #ff6b6b;
+                    color: #ff6b6b;
+                }
+
+                .er-layer.systems .er-layer-title {
+                    border-color: #4ecdc4;
+                    color: #4ecdc4;
+                }
+
+                .er-layer.interfaces .er-layer-title {
+                    border-color: #2ecc71;
+                    color: #2ecc71;
+                }
+
+                .er-layer.items .er-layer-title {
+                    border-color: #3498db;
+                    color: #3498db;
+                }
+
+                .er-layer.data .er-layer-title {
+                    border-color: #fdcb6e;
+                    color: #fdcb6e;
+                }
+
+                .er-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                    gap: 15px;
+                }
+
+                .er-card {
+                    background: rgba(20, 20, 40, 0.95);
+                    border: 2px solid;
+                    border-radius: 10px;
+                    font-size: 0.8rem;
+                    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+                    transition: transform 0.2s, box-shadow 0.2s;
+                }
+
+                .er-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+                }
+
+                .er-card.manager {
+                    border-color: #ff6b6b;
+                }
+
+                .er-card.manager .er-card-header {
+                    background: linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(238, 90, 36, 0.2));
+                }
+
+                .er-card.system {
+                    border-color: #4ecdc4;
+                }
+
+                .er-card.system .er-card-header {
+                    background: linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(68, 160, 141, 0.2));
+                }
+
+                .er-card.interface {
+                    border-color: #2ecc71;
+                    border-style: dashed;
+                }
+
+                .er-card.interface .er-card-header {
+                    background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.2));
+                }
+
+                .er-card.item {
+                    border-color: #3498db;
+                }
+
+                .er-card.item .er-card-header {
+                    background: linear-gradient(135deg, rgba(52, 152, 219, 0.3), rgba(41, 128, 185, 0.2));
+                }
+
+                .er-card.abstract {
+                    border-color: #e74c3c;
+                }
+
+                .er-card.abstract .er-card-header {
+                    background: linear-gradient(135deg, rgba(231, 76, 60, 0.3), rgba(192, 57, 43, 0.2));
+                }
+
+                .er-card.data {
+                    border-color: #fdcb6e;
+                }
+
+                .er-card.data .er-card-header {
+                    background: linear-gradient(135deg, rgba(253, 203, 110, 0.3), rgba(243, 156, 18, 0.2));
+                }
+
+                .er-card.ui {
+                    border-color: #fd79a8;
+                }
+
+                .er-card.ui .er-card-header {
+                    background: linear-gradient(135deg, rgba(253, 121, 168, 0.3), rgba(232, 67, 147, 0.2));
+                }
+
+                .er-card.enum {
+                    border-color: #a29bfe;
+                }
+
+                .er-card.enum .er-card-header {
+                    background: linear-gradient(135deg, rgba(162, 155, 254, 0.3), rgba(108, 92, 231, 0.2));
+                }
+
+                .er-card-header {
+                    padding: 10px 15px;
+                    font-weight: bold;
+                    font-size: 0.95rem;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .er-card-body {
+                    padding: 10px 15px;
+                }
+
+                .er-card-section {
+                    margin-bottom: 10px;
+                }
+
+                .er-card-section:last-child {
+                    margin-bottom: 0;
+                }
+
+                .er-card-section-title {
+                    font-size: 0.65rem;
+                    color: #888;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 5px;
+                }
+
+                .er-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin: 3px 0;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    font-size: 0.75rem;
+                }
+
+                .er-item .name {
+                    color: #74b9ff;
+                }
+
+                .er-item .type {
+                    color: #fdcb6e;
+                    margin-left: auto;
+                    font-size: 0.7rem;
+                }
+
+                .er-item .method {
+                    color: #a29bfe;
+                }
+
+                .er-item .return {
+                    color: #55efc4;
+                    margin-left: auto;
+                    font-size: 0.7rem;
+                }
+
+                .er-badges {
+                    display: flex;
+                    gap: 5px;
+                    flex-wrap: wrap;
+                    margin-top: 8px;
+                }
+
+                .er-badge {
+                    padding: 3px 8px;
+                    border-radius: 10px;
+                    font-size: 0.65rem;
+                    font-weight: bold;
+                }
+
+                .er-badge.extends {
+                    background: #e74c3c;
+                }
+
+                .er-badge.implements {
+                    background: #2ecc71;
+                }
+
+                .er-badge.fallable {
+                    background: #3498db;
+                }
+
+                .er-badge.matchable {
+                    background: #2ecc71;
+                }
+
+                .er-badge.damageable {
+                    background: #e74c3c;
+                }
+            </style>
+
+            <!-- LAYER 1: MANAGERS -->
+            <div class="er-layer managers">
+                <div class="er-layer-title">🎮 KATMAN 1: Yöneticiler (Managers)</div>
+                <div class="er-grid">
+                    <div class="er-card manager">
+                        <div class="er-card-header">🎮 GameManager</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Fields</div>
+                                <div class="er-item"><span class="name">_gridSystem</span><span
+                                        class="type">GridSystem</span></div>
+                                <div class="er-item"><span class="name">_matchSystem</span><span
+                                        class="type">MatchSystem</span></div>
+                                <div class="er-item"><span class="name">_gravitySystem</span><span
+                                        class="type">GravitySystem</span></div>
+                                <div class="er-item"><span class="name">_rocketSystem</span><span
+                                        class="type">RocketSystem</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Events</div>
+                                <div class="er-item"><span class="method">OnLevelLoaded</span><span
+                                        class="return">Action</span></div>
+                                <div class="er-item"><span class="method">OnMovesUpdated</span><span
+                                        class="return">Action&lt;int&gt;</span></div>
+                                <div class="er-item"><span class="method">OnLevelWon / Lost</span><span
+                                        class="return">Action</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card ui">
+                        <div class="er-card-header">📱 UIManager</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Fields</div>
+                                <div class="er-item"><span class="name">_gameHUD</span><span
+                                        class="type">GameObject</span></div>
+                                <div class="er-item"><span class="name">_winPanel / _losePanel</span><span
+                                        class="type">GameObject</span></div>
+                                <div class="er-item"><span class="name">_goalViews</span><span class="type">Dict</span>
+                                </div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">BuildGoals()</span><span
+                                        class="return">void</span></div>
+                                <div class="er-item"><span class="method">OnLevelLoaded()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card manager">
+                        <div class="er-card-header">🔊 AudioManager <span
+                                style="font-size:0.7rem; opacity:0.7;">(Singleton)</span></div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Fields</div>
+                                <div class="er-item"><span class="name">Instance</span><span class="type">static</span>
+                                </div>
+                                <div class="er-item"><span class="name">_musicSource / _sfxSource</span><span
+                                        class="type">AudioSource</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">PlayMusic() / PlaySFX()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card manager">
+                        <div class="er-card-header">🔄 SceneTransitionManager <span
+                                style="font-size:0.7rem; opacity:0.7;">(Singleton)</span></div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">LoadScene()</span><span
+                                        class="return">void</span></div>
+                                <div class="er-item"><span class="method">Fade()</span><span
+                                        class="return">IEnumerator</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card manager">
+                        <div class="er-card-header">🎊 ConfettiManager</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">PlayConfetti() / StopConfetti()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LAYER 2: SYSTEMS -->
+            <div class="er-layer systems">
+                <div class="er-layer-title">⚙️ KATMAN 2: Sistemler (Pure C# Classes)</div>
+                <div class="er-grid">
+                    <div class="er-card system">
+                        <div class="er-card-header">📊 GridSystem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Fields</div>
+                                <div class="er-item"><span class="name">_width / _height</span><span
+                                        class="type">int</span></div>
+                                <div class="er-item"><span class="name">_grid</span><span
+                                        class="type">IBoardItem[,]</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">GetItem() / SetItem()</span><span
+                                        class="return">IBoardItem</span></div>
+                                <div class="er-item"><span class="method">IsValid()</span><span
+                                        class="return">bool</span></div>
+                                <div class="er-item"><span class="method">DestroyItem()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">🔍 MatchSystem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Dependencies</div>
+                                <div class="er-item"><span class="name">_gridSystem</span><span
+                                        class="type">GridSystem</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">FindMatches()</span><span
+                                        class="return">List&lt;IBoardItem&gt;</span></div>
+                                <div class="er-item"><span class="method">FloodFill()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">⬇️ GravitySystem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Dependencies</div>
+                                <div class="er-item"><span class="name">_grid</span><span class="type">GridSystem</span>
+                                </div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">ApplyGravity()</span><span
+                                        class="return">bool</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">🚀 RocketSystem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Dependencies</div>
+                                <div class="er-item"><span class="name">_gridSystem</span><span
+                                        class="type">GridSystem</span></div>
+                                <div class="er-item"><span class="name">_itemFactory</span><span
+                                        class="type">ItemFactory</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">TryProcessRocketClick()</span><span
+                                        class="return">bool</span></div>
+                                <div class="er-item"><span class="method">TriggerRocket()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">💡 RocketHintSystem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Dependencies</div>
+                                <div class="er-item"><span class="name">_matchSystem</span><span
+                                        class="type">MatchSystem</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">UpdateHints()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">📁 LevelLoader</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Dependencies</div>
+                                <div class="er-item"><span class="name">_factory</span><span
+                                        class="type">ItemFactory</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">LoadLevel()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card data">
+                        <div class="er-card-header">🏭 ItemFactory <span
+                                style="font-size:0.7rem; opacity:0.7;">(ScriptableObject)</span></div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">CreateItem()</span><span
+                                        class="return">IBoardItem</span></div>
+                                <div class="er-item"><span class="method">GetPrefab() / GetSprite()</span><span
+                                        class="return">GameObject</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LAYER 3: INTERFACES -->
+            <div class="er-layer interfaces">
+                <div class="er-layer-title">🔌 KATMAN 3: Interface'ler (Yetenekler)</div>
+                <div class="er-grid">
+                    <div class="er-card interface">
+                        <div class="er-card-header">🔌 IBoardItem</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Properties</div>
+                                <div class="er-item"><span class="name">X, Y</span><span class="type">int</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">SetPosition() / Init()</span><span
+                                        class="return">void</span></div>
+                                <div class="er-item"><span class="method">GetItemType()</span><span
+                                        class="return">ItemType</span></div>
+                                <div class="er-item"><span class="method">GetGameObject()</span><span
+                                        class="return">GameObject</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card interface">
+                        <div class="er-card-header">🎨 IMatchable</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">GetColor()</span><span
+                                        class="return">CubeColor</span></div>
+                                <div class="er-item"><span class="method">CanMatch()</span><span
+                                        class="return">bool</span></div>
+                            </div>
+                            <p style="font-size: 0.7rem; color: #2ecc71; margin-top: 8px;">"Ben eşleşebilirim"</p>
+                        </div>
+                    </div>
+
+                    <div class="er-card interface">
+                        <div class="er-card-header">💥 IDamageable</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Properties</div>
+                                <div class="er-item"><span class="name">Health</span><span class="type">int</span></div>
+                            </div>
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">TakeDamage()</span><span
+                                        class="return">bool</span></div>
+                            </div>
+                            <p style="font-size: 0.7rem; color: #e74c3c; margin-top: 8px;">"Ben hasar alabilirim"</p>
+                        </div>
+                    </div>
+
+                    <div class="er-card interface">
+                        <div class="er-card-header">⬇️ IFallable</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">Methods</div>
+                                <div class="er-item"><span class="method">CanFall()</span><span
+                                        class="return">bool</span></div>
+                                <div class="er-item"><span class="method">FallTo()</span><span
+                                        class="return">void</span></div>
+                            </div>
+                            <p style="font-size: 0.7rem; color: #3498db; margin-top: 8px;">"Ben düşebilirim"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LAYER 4: ITEMS -->
+            <div class="er-layer items">
+                <div class="er-layer-title">📦 KATMAN 4: Board Items (Oyun Nesneleri)</div>
+
+                <!-- Abstract Base -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #e74c3c; margin-bottom: 10px;">🔺 Base Class</h4>
+                    <div class="er-grid">
+                        <div class="er-card abstract">
+                            <div class="er-card-header">📦 AbstractBoardItem <span
+                                    style="font-size:0.7rem; opacity:0.7;">(Abstract)</span></div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge implements">IBoardItem</span>
+                                    <span class="er-badge" style="background:#9b59b6;">IPointerClickHandler</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-card-section-title">Methods</div>
+                                    <div class="er-item"><span class="method">MoveToPosition()</span><span
+                                            class="return">void</span></div>
+                                    <div class="er-item"><span class="method">SpawnParticle()</span><span
+                                            class="return">void</span></div>
+                                    <div class="er-item"><span class="method">PlayDestroyEffect()</span><span
+                                            class="return">virtual</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concrete Items -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #3498db; margin-bottom: 10px;">🔷 Concrete Classes</h4>
+                    <div class="er-grid">
+                        <div class="er-card item">
+                            <div class="er-card-header">🟦 CubeItem</div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge extends">AbstractBoardItem</span>
+                                    <span class="er-badge matchable">IMatchable</span>
+                                    <span class="er-badge fallable">IFallable</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-card-section-title">Fields</div>
+                                    <div class="er-item"><span class="name">_color</span><span
+                                            class="type">CubeColor</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="er-card item">
+                            <div class="er-card-header">🚀 RocketItem</div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge extends">AbstractBoardItem</span>
+                                    <span class="er-badge fallable">IFallable</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-card-section-title">Fields</div>
+                                    <div class="er-item"><span class="name">IsHorizontal</span><span
+                                            class="type">bool</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="er-card abstract">
+                            <div class="er-card-header">🚧 ObstacleItem <span
+                                    style="font-size:0.7rem; opacity:0.7;">(Abstract)</span></div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge extends">AbstractBoardItem</span>
+                                    <span class="er-badge damageable">IDamageable</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-card-section-title">Fields</div>
+                                    <div class="er-item"><span class="name">_health</span><span class="type">int</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Obstacle Children -->
+                <div>
+                    <h4 style="color: #f39c12; margin-bottom: 10px;">🔶 Obstacle Types (ObstacleItem'dan türer)</h4>
+                    <div class="er-grid">
+                        <div class="er-card item" style="border-color: #f39c12;">
+                            <div class="er-card-header">🏺 VaseItem</div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge" style="background:#f39c12;">ObstacleItem</span>
+                                    <span class="er-badge fallable">IFallable</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-item"><span class="name">Health: 2</span><span class="type">Kırılgan
+                                            + Düşer</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="er-card item" style="border-color: #f39c12;">
+                            <div class="er-card-header">📦 BoxItem</div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge" style="background:#f39c12;">ObstacleItem</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div class="er-item"><span class="name">Health: 1</span><span class="type">Sabit
+                                            (düşmez)</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="er-card item" style="border-color: #f39c12;">
+                            <div class="er-card-header">🪨 StoneItem</div>
+                            <div class="er-card-body">
+                                <div class="er-badges">
+                                    <span class="er-badge" style="background:#f39c12;">ObstacleItem</span>
+                                </div>
+                                <div class="er-card-section" style="margin-top: 10px;">
+                                    <div style="font-size: 0.75rem; color: #e74c3c;">
+                                        ⚠️ Sadece RocketHit ile kırılır<br>
+                                        ❌ MatchBlast etkilemez
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LAYER 5: DATA & ENUMS -->
+            <div class="er-layer data">
+                <div class="er-layer-title">📋 KATMAN 5: Data Classes & Enums</div>
+                <div class="er-grid">
+                    <div class="er-card data">
+                        <div class="er-card-header">📋 LevelData</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">JSON Fields</div>
+                                <div class="er-item"><span class="name">level_number</span><span class="type">int</span>
+                                </div>
+                                <div class="er-item"><span class="name">grid_width / grid_height</span><span
+                                        class="type">int</span></div>
+                                <div class="er-item"><span class="name">move_count</span><span class="type">int</span>
+                                </div>
+                                <div class="er-item"><span class="name">grid</span><span
+                                        class="type">List&lt;string&gt;</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card ui">
+                        <div class="er-card-header">🎯 GoalItemView</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-card-section-title">UI Prefab</div>
+                                <div class="er-item"><span class="name">_iconImage</span><span class="type">Image</span>
+                                </div>
+                                <div class="er-item"><span class="name">_countNumber</span><span
+                                        class="type">TMP_Text</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card enum">
+                        <div class="er-card-header">📊 ItemType</div>
+                        <div class="er-card-body">
+                            <div class="er-item">None, Cube, Rocket, Obstacle</div>
+                        </div>
+                    </div>
+
+                    <div class="er-card enum">
+                        <div class="er-card-header">🎨 CubeColor</div>
+                        <div class="er-card-body">
+                            <div class="er-item">
+                                <span style="color:#e74c3c;">🔴</span>Red
+                                <span style="color:#2ecc71;">🟢</span>Green
+                                <span style="color:#3498db;">🔵</span>Blue
+                                <span style="color:#f1c40f;">🟡</span>Yellow
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="er-card enum">
+                        <div class="er-card-header">💥 DamageType</div>
+                        <div class="er-card-body">
+                            <div class="er-item"><span class="name">MatchBlast</span><span class="type">Küp
+                                    patlaması</span></div>
+                            <div class="er-item"><span class="name">RocketHit</span><span class="type">Roket
+                                    çarpması</span></div>
+                        </div>
+                    </div>
+
+                    <div class="er-card system">
+                        <div class="er-card-header">🔢 BlastIdTracker</div>
+                        <div class="er-card-body">
+                            <div class="er-card-section">
+                                <div class="er-item"><span class="name">CurrentBlastId</span><span class="type">static
+                                        int</span></div>
+                            </div>
+                            <p style="font-size: 0.7rem; color: #888; margin-top: 5px;">Vase'nin aynı blast'tan 2x hasar
+                                almasını engeller</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+
+        <div class="footer">
+            <p>Boom Boom Cube - Mimari Dokümantasyonu</p>
+            <p style="margin-top: 5px;">Bu dosyayı tarayıcıda aç ve projenin röntgenini gör 🔍</p>
+        </div>
+    </div>
+</body>
+
+</html>
