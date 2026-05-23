@@ -94,5 +94,10 @@ Levels are data-driven and stored as JSON files in `Assets/Levels/`. This allows
 
 Developed by **Muzaffer Canan**.
 
+<img width="488" height="867" alt="image" src="https://github.com/user-attachments/assets/91af0095-02aa-4c3e-a992-3f93a798f7a1" />
+<img width="488" height="872" alt="image" src="https://github.com/user-attachments/assets/7fca2d18-1f17-4de3-86ce-020192befa37" />
+<img width="488" height="870" alt="image" src="https://github.com/user-attachments/assets/8eb4f200-63d5-433c-bbb9-15c648ab02d0" />
+
+
 ---
 *Built with ❤️ in Unity*
