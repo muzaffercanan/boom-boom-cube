@@ -70,7 +70,9 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
     {
         if (prefab == null) return;
         
-        ParticleSystem instance = Instantiate(prefab, transform.parent);
+        ParticleSystem instance = ParticlePool.Get(prefab, transform.parent);
+        if (instance == null) return;
+
         instance.transform.position = transform.position;
         
         var main = instance.main;
@@ -79,7 +81,7 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
         main.startSpeed = new ParticleSystem.MinMaxCurve(3f, 6f);
         main.startSize = 0.25f;
         main.gravityModifier = 0.6f;
-        main.stopAction = ParticleSystemStopAction.Destroy;
+        main.stopAction = ParticleSystemStopAction.Callback;
         main.startRotation = new ParticleSystem.MinMaxCurve(0, 360f * Mathf.Deg2Rad);
         
         var emission = instance.emission;

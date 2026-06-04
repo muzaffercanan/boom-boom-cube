@@ -14,25 +14,10 @@ public class VaseItem : ObstacleItem, IFallable
     [SerializeField] private ParticleSystem _destroyParticle02;
     [SerializeField] private ParticleSystem _destroyParticle03;
 
-    private int _lastBlastId = -1;
-
     private void Start()
     {
         _health = 2;
         UpdateVisuals();
-    }
-
-    public override bool TakeDamage(DamageType type)
-    {
-
-        if (type == DamageType.MatchBlast)
-        {
-            int currentId = BlastIdTracker.CurrentBlastId;
-            if (_lastBlastId == currentId) return false;
-            _lastBlastId = currentId;
-        }
-
-        return base.TakeDamage(type);
     }
 
     public override void PlayDestroyEffect(DamageType damageType)

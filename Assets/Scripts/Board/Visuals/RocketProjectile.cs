@@ -17,13 +17,19 @@ public class RocketProjectile : MonoBehaviour
     private int _maxRange = -1; 
 
     private AudioSource _audioSource;
+    private Action<RocketProjectile> _releaseToPool;
 
-    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, AudioClip loopSfx = null, int maxRange = -1)
+    public string PoolKey { get; private set; }
+
+    public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, AudioClip loopSfx = null, int maxRange = -1, Action<RocketProjectile> releaseToPool = null)
     {
+        ClearGeneratedVisuals();
+
         _direction = direction;
         _cellSize = cellSize;
         _gridSystem = grid;
         _onCellHit = onCellHit;
+        _releaseToPool = releaseToPool;
         _speed = 12f; 
 
         _startX = startX;
@@ -36,7 +42,10 @@ public class RocketProjectile : MonoBehaviour
 
         if (loopSfx != null)
         {
-            _audioSource = gameObject.AddComponent<AudioSource>();
+            if (_audioSource == null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+            }
             _audioSource.clip = loopSfx;
             _audioSource.loop = true;
             _audioSource.volume = AudioManager.Instance != null ? AudioManager.Instance.SFXVolume : 1f;
@@ -178,7 +187,7 @@ public class RocketProjectile : MonoBehaviour
             
             if (distanceTraveled > _maxRange)
             {
-                Destroy(gameObject);
+                Release();
                 return;
             }
         }
@@ -211,8 +220,39 @@ public class RocketProjectile : MonoBehaviour
             }
             else
             {
-                Destroy(gameObject);
+                Release();
                 return;
+            }
+        }
+    }
+
+    public void SetPoolKey(string poolKey)
+    {
+        PoolKey = poolKey;
+    }
+
+    private void Release()
+    {
+        if (_audioSource != null)
+        {
+            _audioSource.Stop();
+        }
+
+        _releaseToPool?.Invoke(this);
+        if (_releaseToPool == null)
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void ClearGeneratedVisuals()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            Transform child = transform.GetChild(i);
+            if (child.name == "RocketTrail" || child.name == "RocketFireParticles")
+            {
+                Destroy(child.gameObject);
             }
         }
     }

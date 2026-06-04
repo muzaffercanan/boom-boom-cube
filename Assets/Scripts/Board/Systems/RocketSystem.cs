@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Pool;
 
 public class RocketSystem
 {
@@ -10,6 +11,7 @@ public class RocketSystem
     private readonly float _cellSize;
     private readonly MonoBehaviour _coroutineRunner;
     private readonly AudioClip _rocketSfx;
+    private readonly Dictionary<string, ObjectPool<GameObject>> _projectilePools = new Dictionary<string, ObjectPool<GameObject>>();
 
     private System.Action<Vector2Int> _onDamageRequest;
 
@@ -128,26 +130,29 @@ public class RocketSystem
     {
         if (isHorizontal)
         {
-            SpawnProjectile("rocket_h_part_left", x, y, Vector2.left, maxRange);
-            SpawnProjectile("rocket_h_part_right", x, y, Vector2.right, maxRange);
+            SpawnProjectile(ItemIds.RocketHorizontalPartLeft, x, y, Vector2.left, maxRange);
+            SpawnProjectile(ItemIds.RocketHorizontalPartRight, x, y, Vector2.right, maxRange);
         }
         else
         {
-            SpawnProjectile("rocket_v_part_bottom", x, y, Vector2.down, maxRange);
-            SpawnProjectile("rocket_v_part_top", x, y, Vector2.up, maxRange);
+            SpawnProjectile(ItemIds.RocketVerticalPartBottom, x, y, Vector2.down, maxRange);
+            SpawnProjectile(ItemIds.RocketVerticalPartTop, x, y, Vector2.up, maxRange);
         }
     }
 
     private void SpawnProjectile(string prefabId, int startX, int startY, Vector2 direction, int maxRange = -1)
     {
-        GameObject projectileObj = _itemFactory.CreateVisual(prefabId, _boardParent); 
+        string poolKey = prefabId;
+        GameObject projectileObj = GetProjectileFromPool(poolKey);
         
         if (projectileObj == null)
         {
-            projectileObj = _itemFactory.CreateVisual("rocket_projectile", _boardParent);
+            poolKey = ItemIds.RocketProjectile;
+            projectileObj = GetProjectileFromPool(poolKey);
 
             if (projectileObj == null)
             {
+                poolKey = null;
                 projectileObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 projectileObj.transform.localScale = Vector3.one * 0.5f;
                 projectileObj.transform.SetParent(_boardParent);
@@ -161,11 +166,62 @@ public class RocketSystem
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();
 
-        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange);
+        projectileComp.SetPoolKey(poolKey);
+        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange, ReleaseProjectile);
     }
 
     private void OnProjectileHitCell(int x, int y)
     {
         _onDamageRequest?.Invoke(new Vector2Int(x, y));
+    }
+
+    private GameObject GetProjectileFromPool(string prefabId)
+    {
+        ObjectPool<GameObject> pool = GetOrCreateProjectilePool(prefabId);
+        return pool?.Get();
+    }
+
+    private ObjectPool<GameObject> GetOrCreateProjectilePool(string prefabId)
+    {
+        if (_projectilePools.TryGetValue(prefabId, out ObjectPool<GameObject> pool))
+        {
+            return pool;
+        }
+
+        GameObject prefab = _itemFactory.GetPrefab(prefabId);
+        if (prefab == null)
+        {
+            return null;
+        }
+
+        pool = new ObjectPool<GameObject>(
+            createFunc: () => Object.Instantiate(prefab, _boardParent),
+            actionOnGet: projectile =>
+            {
+                projectile.transform.SetParent(_boardParent);
+                projectile.SetActive(true);
+            },
+            actionOnRelease: projectile => projectile.SetActive(false),
+            actionOnDestroy: projectile => Object.Destroy(projectile),
+            collectionCheck: false,
+            defaultCapacity: 8,
+            maxSize: 32);
+
+        _projectilePools.Add(prefabId, pool);
+        return pool;
+    }
+
+    private void ReleaseProjectile(RocketProjectile projectile)
+    {
+        if (projectile == null) return;
+
+        string prefabId = projectile.PoolKey;
+        if (!string.IsNullOrEmpty(prefabId) && _projectilePools.TryGetValue(prefabId, out ObjectPool<GameObject> pool))
+        {
+            pool.Release(projectile.gameObject);
+            return;
+        }
+
+        Object.Destroy(projectile.gameObject);
     }
 }

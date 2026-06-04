@@ -6,6 +6,26 @@ public enum ItemType
     Obstacle
 }
 
+public enum ItemId
+{
+    Unknown,
+    Red,
+    Green,
+    Blue,
+    Yellow,
+    Box,
+    Stone,
+    Vase,
+    Random,
+    HorizontalRocket,
+    VerticalRocket,
+    RocketHorizontalPartLeft,
+    RocketHorizontalPartRight,
+    RocketVerticalPartBottom,
+    RocketVerticalPartTop,
+    RocketProjectile
+}
+
 public enum CubeColor
 {
     Red,

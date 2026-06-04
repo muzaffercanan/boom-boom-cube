@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 public class AudioManager : MonoBehaviour
 {
+    private const string MusicVolumeKey = "Audio.MusicVolume";
+    private const string SfxVolumeKey = "Audio.SfxVolume";
+
     public static AudioManager Instance { get; private set; }
 
     [Header("Audio Sources")]
@@ -31,6 +34,9 @@ public class AudioManager : MonoBehaviour
 
     private void InitializeAudioSources()
     {
+        _musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, _musicVolume);
+        _sfxVolume = PlayerPrefs.GetFloat(SfxVolumeKey, _sfxVolume);
+
         if (_musicSource == null)
         {
             GameObject musicObj = new GameObject("MusicSource");
@@ -71,18 +77,23 @@ public class AudioManager : MonoBehaviour
     public void PlaySFX(AudioClip clip, float volumeScale = 1f)
     {
         if (clip == null) return;
-        _sfxSource.PlayOneShot(clip, volumeScale * _sfxVolume);
+        _sfxSource.PlayOneShot(clip, volumeScale);
     }
 
     public void SetMusicVolume(float volume)
     {
         _musicVolume = Mathf.Clamp01(volume);
         if (_musicSource) _musicSource.volume = _musicVolume;
+        PlayerPrefs.SetFloat(MusicVolumeKey, _musicVolume);
+        PlayerPrefs.Save();
     }
 
     public void SetSFXVolume(float volume)
     {
         _sfxVolume = Mathf.Clamp01(volume);
+        if (_sfxSource) _sfxSource.volume = _sfxVolume;
+        PlayerPrefs.SetFloat(SfxVolumeKey, _sfxVolume);
+        PlayerPrefs.Save();
     }
     private void OnValidate()
     {

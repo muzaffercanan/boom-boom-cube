@@ -17,7 +17,7 @@ public class LevelButtonController : MonoBehaviour
         if (_button == null)
             _button = GetComponent<Button>();
 
-        _targetLevel = PlayerPrefs.GetInt("LastPlayedLevel", 1);
+        _targetLevel = ProgressService.GetLastPlayedLevel();
 
         UpdateVisuals();
 
@@ -46,8 +46,7 @@ public class LevelButtonController : MonoBehaviour
         if (_targetLevel > MAX_LEVELS)
         {
             _buttonText.text = "Finished";
-            _button.interactable = false; 
-            _button.interactable = false;
+            if (_button != null) _button.interactable = false;
         }
         else
         {
@@ -63,17 +62,19 @@ public class LevelButtonController : MonoBehaviour
 
         if (_targetLevel > MAX_LEVELS) return;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         Debug.Log($"[LevelButtonController] Loading Level {_targetLevel}");
+#endif
         
-        PlayerPrefs.SetInt("SelectedLevelForGame", _targetLevel);
+        ProgressService.SetSelectedLevel(_targetLevel);
         
         if (SceneTransitionManager.Instance != null)
         {
-            SceneTransitionManager.Instance.LoadScene("LevelScene");
+            SceneTransitionManager.Instance.LoadScene(SceneNames.Level);
         }
         else
         {
-            SceneManager.LoadScene("LevelScene");
+            SceneManager.LoadScene(SceneNames.Level);
         }
     }
 }

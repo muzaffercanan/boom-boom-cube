@@ -7,6 +7,7 @@ public class ItemFactory : ScriptableObject
     [System.Serializable]
     public struct ItemPrefabMap
     {
+        public ItemId itemId;
         public string id;
         public GameObject prefab;
     }
@@ -16,27 +17,47 @@ public class ItemFactory : ScriptableObject
     [Header("Settings")]
     [SerializeField] private float _itemScale = 0.95f;
 
-    private static readonly string[] RandomColors = { "r", "g", "b", "y" };
+    private static readonly ItemId[] RandomColors = { ItemId.Red, ItemId.Green, ItemId.Blue, ItemId.Yellow };
+    private readonly Dictionary<ItemId, GameObject> _prefabCache = new Dictionary<ItemId, GameObject>();
+    private bool _cacheDirty = true;
+
+    private void OnEnable()
+    {
+        RebuildCache();
+    }
+
+    private void OnValidate()
+    {
+        _cacheDirty = true;
+    }
 
     public GameObject GetPrefab(string id)
     {
-        if (id == "rand")
-        {
-            id = RandomColors[Random.Range(0, RandomColors.Length)];
-        }
+        return GetPrefab(ItemIds.ToItemId(id));
+    }
 
-        var match = mappings.Find(m => m.id == id);
-        if (match.prefab == null)
+    public GameObject GetPrefab(ItemId itemId)
+    {
+        itemId = ResolveRandomId(itemId);
+        EnsureCache();
+
+        if (!_prefabCache.TryGetValue(itemId, out GameObject prefab) || prefab == null)
         {
-            Debug.LogError($"[ItemFactory] No prefab found for: {id}");
+            Debug.LogError($"[ItemFactory] No prefab found for: {itemId}");
             return null;
         }
-        return match.prefab;
+
+        return prefab;
     }
 
     public GameObject CreateVisual(string id, Transform parent)
     {
-        GameObject prefab = GetPrefab(id);
+        return CreateVisual(ItemIds.ToItemId(id), parent);
+    }
+
+    public GameObject CreateVisual(ItemId itemId, Transform parent)
+    {
+        GameObject prefab = GetPrefab(itemId);
         if (prefab == null) return null;
 
         return Instantiate(prefab, parent);
@@ -44,7 +65,7 @@ public class ItemFactory : ScriptableObject
 
     public Sprite GetSprite(string id)
     {
-        GameObject prefab = GetPrefab(id);
+        GameObject prefab = GetPrefab(ItemIds.ToItemId(id));
         if (prefab != null)
         {
             var r = prefab.GetComponent<SpriteRenderer>();
@@ -55,12 +76,14 @@ public class ItemFactory : ScriptableObject
 
     public IBoardItem CreateItem(string id, Transform parent)
     {
-        if (id == "rand")
-        {
-            id = RandomColors[Random.Range(0, RandomColors.Length)];
-        }
+        return CreateItem(ItemIds.ToItemId(id), parent);
+    }
 
-        GameObject prefab = GetPrefab(id);
+    public IBoardItem CreateItem(ItemId itemId, Transform parent)
+    {
+        itemId = ResolveRandomId(itemId);
+
+        GameObject prefab = GetPrefab(itemId);
         if (prefab == null) return null;
 
         GameObject instance = Instantiate(prefab, parent);
@@ -69,26 +92,90 @@ public class ItemFactory : ScriptableObject
 
         if (boardItem is CubeItem cubeItem)
         {
-            CubeColor color = ParseColor(id);
+            CubeColor color = ParseColor(itemId);
             cubeItem.Init(color);
         }
         else if (boardItem is RocketItem rocketItem)
         {
-            bool isHorizontal = (id == "hro");
+            bool isHorizontal = (itemId == ItemId.HorizontalRocket);
             rocketItem.Init(isHorizontal);
         }
 
         return boardItem;
     }
 
-    private CubeColor ParseColor(string id)
+    private void EnsureCache()
     {
-        switch (id)
+        if (_cacheDirty)
         {
-            case "r": return CubeColor.Red;
-            case "g": return CubeColor.Green;
-            case "b": return CubeColor.Blue;
-            case "y": return CubeColor.Yellow;
+            RebuildCache();
+        }
+    }
+
+    private void RebuildCache()
+    {
+        _prefabCache.Clear();
+        _cacheDirty = false;
+
+        if (mappings == null)
+        {
+            Debug.LogWarning("[ItemFactory] Mappings list is null.");
+            return;
+        }
+
+        foreach (var mapping in mappings)
+        {
+            ItemId itemId = ResolveMappingId(mapping);
+            if (itemId == ItemId.Unknown)
+            {
+                Debug.LogWarning("[ItemFactory] Mapping contains an unknown item id.");
+                continue;
+            }
+
+            if (mapping.prefab == null)
+            {
+                Debug.LogWarning($"[ItemFactory] Mapping '{itemId}' has no prefab assigned.");
+                continue;
+            }
+
+            if (_prefabCache.ContainsKey(itemId))
+            {
+                Debug.LogWarning($"[ItemFactory] Duplicate mapping id '{itemId}' ignored.");
+                continue;
+            }
+
+            _prefabCache.Add(itemId, mapping.prefab);
+        }
+    }
+
+    private static ItemId ResolveMappingId(ItemPrefabMap mapping)
+    {
+        if (mapping.itemId != ItemId.Unknown)
+        {
+            return mapping.itemId;
+        }
+
+        return ItemIds.ToItemId(mapping.id);
+    }
+
+    private ItemId ResolveRandomId(ItemId itemId)
+    {
+        if (itemId != ItemId.Random)
+        {
+            return itemId;
+        }
+
+        return RandomColors[Random.Range(0, RandomColors.Length)];
+    }
+
+    private CubeColor ParseColor(ItemId itemId)
+    {
+        switch (itemId)
+        {
+            case ItemId.Red: return CubeColor.Red;
+            case ItemId.Green: return CubeColor.Green;
+            case ItemId.Blue: return CubeColor.Blue;
+            case ItemId.Yellow: return CubeColor.Yellow;
             default: return CubeColor.Red;
         }
     }

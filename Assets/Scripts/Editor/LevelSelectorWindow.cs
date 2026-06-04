@@ -46,8 +46,8 @@ namespace DreamGames.Editor
 
         private void PlayLevel(int level)
         {
-            PlayerPrefs.SetInt("SelectedLevelForGame", level);
-            PlayerPrefs.SetInt("LastPlayedLevel", level);
+            PlayerPrefs.SetInt(ProgressService.SelectedLevelForGameKey, level);
+            PlayerPrefs.SetInt(ProgressService.LastPlayedLevelKey, level);
             PlayerPrefs.Save();
 
             Debug.Log($"[LevelSelector] Ready to play Level {level}");
@@ -60,9 +60,9 @@ namespace DreamGames.Editor
             }
             else
             {
-                if (EditorSceneManager.GetActiveScene().name != "LevelScene")
+                if (EditorSceneManager.GetActiveScene().name != SceneNames.Level)
                 {
-                     string scenePath = "Assets/Scenes/LevelScene.unity";
+                     string scenePath = $"Assets/Scenes/{SceneNames.Level}.unity";
                      if (System.IO.File.Exists(scenePath)) 
                      {
                          EditorSceneManager.OpenScene(scenePath);

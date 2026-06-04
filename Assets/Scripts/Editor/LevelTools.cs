@@ -28,8 +28,8 @@ public class LevelTools : EditorWindow
 
     private static void SetLevel(int level)
     {
-        PlayerPrefs.SetInt("LastPlayedLevel", level);
-        PlayerPrefs.SetInt("SelectedLevelForGame", level); 
+        PlayerPrefs.SetInt(ProgressService.LastPlayedLevelKey, level);
+        PlayerPrefs.SetInt(ProgressService.SelectedLevelForGameKey, level);
         PlayerPrefs.Save();
         Debug.Log($"[LevelTools] Progress forced to Level {level}.");
     }

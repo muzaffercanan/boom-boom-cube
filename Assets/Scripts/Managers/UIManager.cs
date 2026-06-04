@@ -38,26 +38,26 @@ public class UIManager : MonoBehaviour
         if (_loseMainMenuButton) _loseMainMenuButton.onClick.AddListener(OnMainMenuClicked);
         if (_loseCloseButton) _loseCloseButton.onClick.AddListener(OnMainMenuClicked);
 
-
+        EnsureGoalLayoutComponents();
         ShowHUD();
     }
 
     private void OnEnable()
     {
-        GameManager.OnLevelLoaded += OnLevelLoaded;
-        GameManager.OnMovesUpdated += OnMovesUpdated;
-        GameManager.OnGoalsUpdated += OnGoalsUpdated;
-        GameManager.OnLevelWon += OnLevelWin;
-        GameManager.OnLevelLost += OnLevelLose;
+        GameEvents.OnLevelLoaded += OnLevelLoaded;
+        GameEvents.OnMovesUpdated += OnMovesUpdated;
+        GameEvents.OnGoalsUpdated += OnGoalsUpdated;
+        GameEvents.OnLevelWon += OnLevelWin;
+        GameEvents.OnLevelLost += OnLevelLose;
     }
 
     private void OnDisable()
     {
-        GameManager.OnLevelLoaded -= OnLevelLoaded;
-        GameManager.OnMovesUpdated -= OnMovesUpdated;
-        GameManager.OnGoalsUpdated -= OnGoalsUpdated;
-        GameManager.OnLevelWon -= OnLevelWin;
-        GameManager.OnLevelLost -= OnLevelLose;
+        GameEvents.OnLevelLoaded -= OnLevelLoaded;
+        GameEvents.OnMovesUpdated -= OnMovesUpdated;
+        GameEvents.OnGoalsUpdated -= OnGoalsUpdated;
+        GameEvents.OnLevelWon -= OnLevelWin;
+        GameEvents.OnLevelLost -= OnLevelLose;
     }
 
     private void OnLevelLoaded(LevelData level, Dictionary<string, int> goals)
@@ -98,64 +98,43 @@ public class UIManager : MonoBehaviour
             _goalViews[id] = view;
         }
 
-        StartCoroutine(UpdateLayoutRoutine(goals.Count));
+        StartCoroutine(UpdateLayoutRoutine());
     }
 
-    private System.Collections.IEnumerator UpdateLayoutRoutine(int itemCount)
+    private System.Collections.IEnumerator UpdateLayoutRoutine()
     {
         if (_goalsContainer == null) yield break;
 
-
-
         LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
         yield return new WaitForEndOfFrame();
 
-        GridLayoutGroup grid = _goalsContainer.GetComponent<GridLayoutGroup>();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
+    }
+
+    private void EnsureGoalLayoutComponents()
+    {
+        if (_goalsContainer == null) return;
+
+        if (_goalsContainer.GetComponent<HorizontalOrVerticalLayoutGroup>() == null &&
+            _goalsContainer.GetComponent<GridLayoutGroup>() == null)
+        {
+            HorizontalLayoutGroup layout = _goalsContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = false;
+            layout.childControlHeight = false;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 12f;
+        }
+
         ContentSizeFitter fitter = _goalsContainer.GetComponent<ContentSizeFitter>();
-        
-        if (grid != null && fitter != null)
+        if (fitter == null)
         {
-            float maxAvailableWidth = 500f; 
-            if (_goalsContainer.parent is RectTransform parentRect)
-            {
-                maxAvailableWidth = parentRect.rect.width; 
-            }
-
-            float itemWidth = grid.cellSize.x + grid.spacing.x;
-            float totalWidthNeeded = itemCount * itemWidth;
-            totalWidthNeeded += grid.padding.left + grid.padding.right;
-
-            if (totalWidthNeeded <= maxAvailableWidth)
-            {
-                fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-            }
-            else
-            {
-                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                _goalsContainer.sizeDelta = new Vector2(maxAvailableWidth, _goalsContainer.sizeDelta.y);
-            }
+            fitter = _goalsContainer.gameObject.AddComponent<ContentSizeFitter>();
         }
 
-        
-        LayoutRebuilder.ForceRebuildLayoutImmediate(_goalsContainer);
-        yield return new WaitForEndOfFrame();
-
-        Vector2 targetPos = _goalsContainer.anchoredPosition;
-
-        if (itemCount == 1)
-        {
-            targetPos = new Vector2(-371f, 654f);
-        }
-        else if (itemCount == 2)
-        {
-            targetPos = new Vector2(-435f, 642f);
-        }
-        else
-        {
-            targetPos = new Vector2(-433f, 708f);
-        }
-
-        _goalsContainer.anchoredPosition = targetPos;
+        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
     private void OnMovesUpdated(int moves)
@@ -188,7 +167,7 @@ public class UIManager : MonoBehaviour
     private System.Collections.IEnumerator AutoLoadMainScene(float delay)
     {
         yield return new WaitForSeconds(delay);
-        LoadSceneSafe("MainScene");
+        LoadSceneSafe(SceneNames.Main);
     }
 
     private void OnLevelLose()
@@ -211,7 +190,7 @@ public class UIManager : MonoBehaviour
 
     private void OnMainMenuClicked()
     {
-        LoadSceneSafe("MainScene");
+        LoadSceneSafe(SceneNames.Main);
     }
 
     private void LoadSceneSafe(string sceneName)
@@ -226,4 +205,3 @@ public class UIManager : MonoBehaviour
         }
     }
 }
-

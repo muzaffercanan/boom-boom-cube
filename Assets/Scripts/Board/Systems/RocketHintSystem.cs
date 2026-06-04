@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class RocketHintSystem
 {
+    private const string HintSpriteResourceRoot = "Cubes/RocketState";
+
     private readonly GridSystem _gridSystem;
     private readonly MatchSystem _matchSystem;
     private readonly int _minRocketSize;
@@ -87,12 +89,8 @@ public class RocketHintSystem
         var spriteRenderer = hintObject.AddComponent<SpriteRenderer>();
         
 
-        Sprite hintSprite = null;
-#if UNITY_EDITOR
         string spriteName = GetRocketHintSpriteName(cube.GetColor());
-        string assetPath = $"Assets/Cubes/RocketState/{spriteName}.png";
-        hintSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
-#endif
+        Sprite hintSprite = Resources.Load<Sprite>($"{HintSpriteResourceRoot}/{spriteName}");
         
         if (hintSprite != null)
         {

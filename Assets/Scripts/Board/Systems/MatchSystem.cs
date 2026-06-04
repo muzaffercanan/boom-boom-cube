@@ -19,7 +19,7 @@ public class MatchSystem
         List<IBoardItem> matches = new List<IBoardItem>();
         bool[,] visited = new bool[_gridSystem.Width, _gridSystem.Height];
 
-        FloodFill(startX, startY, targetColor, visited, matches);
+        FindMatchesWithBfs(startX, startY, targetColor, visited, matches);
 
         return matches;
     }
@@ -50,23 +50,41 @@ public class MatchSystem
         }
     }
 
-    private void FloodFill(int x, int y, CubeColor color, bool[,] visited, List<IBoardItem> result)
+    private void FindMatchesWithBfs(int startX, int startY, CubeColor color, bool[,] visited, List<IBoardItem> result)
     {
-        if (!_gridSystem.IsValid(x, y)) return;
-        if (visited[x, y]) return;
+        Queue<GridPosition> pending = new Queue<GridPosition>();
+        pending.Enqueue(new GridPosition(startX, startY));
 
-        var item = _gridSystem.GetItem(x, y);
-        if (item == null) return;
-
-        if (item is IMatchable m && m.GetColor() == color)
+        while (pending.Count > 0)
         {
-            visited[x, y] = true;
+            GridPosition position = pending.Dequeue();
+            if (!_gridSystem.IsValid(position.X, position.Y)) continue;
+            if (visited[position.X, position.Y]) continue;
+
+            visited[position.X, position.Y] = true;
+
+            var item = _gridSystem.GetItem(position.X, position.Y);
+            if (item == null) continue;
+            if (!(item is IMatchable matchable) || matchable.GetColor() != color) continue;
+
             result.Add(item);
 
-            FloodFill(x + 1, y, color, visited, result);
-            FloodFill(x - 1, y, color, visited, result);
-            FloodFill(x, y + 1, color, visited, result);
-            FloodFill(x, y - 1, color, visited, result);
+            pending.Enqueue(new GridPosition(position.X + 1, position.Y));
+            pending.Enqueue(new GridPosition(position.X - 1, position.Y));
+            pending.Enqueue(new GridPosition(position.X, position.Y + 1));
+            pending.Enqueue(new GridPosition(position.X, position.Y - 1));
+        }
+    }
+
+    private readonly struct GridPosition
+    {
+        public int X { get; }
+        public int Y { get; }
+
+        public GridPosition(int x, int y)
+        {
+            X = x;
+            Y = y;
         }
     }
 }

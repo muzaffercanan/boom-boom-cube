@@ -6,12 +6,14 @@ public class LevelLoader
     private ItemFactory _factory;
     private Transform _boardParent;
     private float _cellSize;
+    private bool _enableDebugLogs;
 
-    public LevelLoader(ItemFactory factory, Transform boardParent, float cellSize = 1.0f)
+    public LevelLoader(ItemFactory factory, Transform boardParent, float cellSize = 1.0f, bool enableDebugLogs = false)
     {
         _factory = factory;
         _boardParent = boardParent;
         _cellSize = cellSize;
+        _enableDebugLogs = enableDebugLogs;
     }
 
     public void LoadLevel(GridSystem gridSystem, LevelData data, Action<int, int> onItemClicked)
@@ -33,7 +35,7 @@ public class LevelLoader
             Debug.LogError($"[LevelLoader] cellSize <= 0 ! cellSize={_cellSize}");
         }
 
-        BoardDebug.LogBoardParent(_boardParent);
+        LogBoardParent();
 
         gridSystem.Initialize(data.grid_width, data.grid_height);
 
@@ -66,12 +68,12 @@ public class LevelLoader
                         float worldY = y * _cellSize;
                         go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
 
-                        Debug.Log(
+                        LogDebug(
                             $"[LevelLoader] Spawn id={id} at grid({x},{y}) world({x * _cellSize},{worldY}) " +
                             $"go={go.name} isRoot={isRootObj} root={root.name}"
                         );
 
-                        if (_boardParent.TryGetComponent<MonoBehaviour>(out var mb))
+                        if (ShouldLogDebug() && _boardParent.TryGetComponent<MonoBehaviour>(out var mb))
                         {
                             mb.StartCoroutine(BoardDebug.LogNextFrame($"LevelSpawn id={id} ({x},{y})", go.transform));
                         }
@@ -85,5 +87,26 @@ public class LevelLoader
                 index++;
             }
         }
+    }
+
+    private void LogBoardParent()
+    {
+        if (!ShouldLogDebug()) return;
+        BoardDebug.LogBoardParent(_boardParent);
+    }
+
+    private void LogDebug(string message)
+    {
+        if (!ShouldLogDebug()) return;
+        Debug.Log(message);
+    }
+
+    private bool ShouldLogDebug()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        return _enableDebugLogs;
+#else
+        return false;
+#endif
     }
 }
