@@ -1,3 +1,4 @@
+using DG.Tweening;
 using UnityEngine;
 using System.Collections;
 
@@ -17,6 +18,16 @@ public class GameManager : MonoBehaviour
     [Header("Game Rules")]
     [SerializeField] private int _minMatchSize = 2;
     [SerializeField] private int _rocketMatchSize = 4;
+    [SerializeField] private bool _enableNoMoveShuffle = true;
+    [SerializeField] private int _shuffleMaxAttempts = 20;
+    [SerializeField] private float _shuffleVisualDuration = 0.25f;
+
+    [Header("Session")]
+    [SerializeField] private bool _useSessionSeedOverride;
+    [SerializeField] private int _sessionSeedOverride;
+    [SerializeField] private bool _enableSessionLog = true;
+    [SerializeField] private bool _writeSessionLogToConsole;
+    [SerializeField] private bool _enableTurnSnapshots;
 
     [Header("Audio")]
     [SerializeField] private AudioClip _backgroundMusic;
@@ -36,8 +47,18 @@ public class GameManager : MonoBehaviour
     private GoalTracker _goalTracker;
     private BoardFiller _boardFiller;
     private TurnProcessor _turnProcessor;
+    private TurnEndResolver _turnEndResolver;
+    private NoMoveScanner _noMoveScanner;
+    private ShuffleSystem _shuffleSystem;
+    private SessionLog _sessionLog;
     private GameStateController _gameStateController;
     private LevelData _currentLevel;
+    private int _currentSessionSeed;
+
+    public int CurrentSessionSeed => _currentSessionSeed;
+    public bool IsProcessingTurn => _turnProcessor != null && _turnProcessor.IsProcessingTurn;
+    public int RemainingMoves => _turnProcessor != null ? _turnProcessor.RemainingMoves : 0;
+    public SessionLog SessionLog => _sessionLog;
 
     private void Start()
     {
@@ -61,7 +82,7 @@ public class GameManager : MonoBehaviour
         _gravitySystem = new GravitySystem(_gridSystem, _cellSize);
         _rocketHintSystem = new RocketHintSystem(_gridSystem, _matchSystem, _rocketMatchSize);
 
-        _boardFiller = new BoardFiller(_gridSystem, _itemFactory, _boardParent, _cellSize, this);
+        _boardFiller = new BoardFiller(_gridSystem, _itemFactory, _boardParent, _cellSize);
         _boardFiller.SetClickCallback(OnItemClicked);
 
         _boardResolver = new BoardResolver(
@@ -69,6 +90,12 @@ public class GameManager : MonoBehaviour
             _boardFiller.FillEmptySpaces,
             () => _rocketHintSystem?.UpdateHints()
         );
+
+        _sessionLog = new SessionLog(_writeSessionLogToConsole)
+        {
+            IsEnabled = _enableSessionLog,
+            IsSnapshotLoggingEnabled = _enableTurnSnapshots
+        };
 
         _gameStateController = new GameStateController(_goalTracker, PlaySound, _winSfx, _loseSfx);
 
@@ -79,7 +106,9 @@ public class GameManager : MonoBehaviour
             onGoalsChanged: GameEvents.RaiseGoalsUpdated,
             onTurnComplete: OnTurnComplete,
             playSound: PlaySound,
-            matchSfx: _matchSfx
+            matchSfx: _matchSfx,
+            onBoardStableBeforeInput: OnBoardStableBeforeInput,
+            sessionLog: _sessionLog
         );
 
         _rocketSystem = new RocketSystem(
@@ -130,6 +159,23 @@ public class GameManager : MonoBehaviour
         }
 
         _currentLevel = levelData;
+        _currentSessionSeed = LevelSessionSeed.BeginSession(
+            _currentLevel.level_number,
+            _useSessionSeedOverride,
+            _sessionSeedOverride);
+        if (_sessionLog == null)
+        {
+            _sessionLog = new SessionLog(_writeSessionLogToConsole);
+        }
+        _sessionLog.IsEnabled = _enableSessionLog;
+        _sessionLog.IsSnapshotLoggingEnabled = _enableTurnSnapshots;
+        _sessionLog.BeginLevel(_currentLevel.level_number, _currentSessionSeed);
+        if (_writeSessionLogToConsole)
+        {
+            Debug.Log($"[GameManager] Level {_currentLevel.level_number} session seed: {_currentSessionSeed}");
+        }
+        _turnEndResolver = CreateTurnEndResolver();
+
         _goalTracker.Initialize(_currentLevel.grid);
         _gameStateController.Reset();
         _turnProcessor.SetRemainingMoves(_currentLevel.move_count);
@@ -161,14 +207,123 @@ public class GameManager : MonoBehaviour
 
     private void OnTurnComplete()
     {
-        _gameStateController.CheckAndResolve(_turnProcessor.RemainingMoves, _currentLevel.level_number);
-
         if (_gameStateController.IsGameOver)
         {
             _boardParent?.gameObject.SetActive(false);
             _boardSetup?.HideBackground();
             _levelButton?.SetActive(true);
         }
+    }
+
+    private IEnumerator OnBoardStableBeforeInput()
+    {
+        _gameStateController.CheckAndResolve(_turnProcessor.RemainingMoves, _currentLevel.level_number);
+        UpdateLastTurnResult();
+
+        if (_gameStateController.IsGameOver)
+        {
+            yield break;
+        }
+
+        if (!_enableNoMoveShuffle)
+        {
+            yield break;
+        }
+
+        if (_turnEndResolver == null)
+        {
+            yield break;
+        }
+
+        bool needsShuffle = _noMoveScanner != null && !_noMoveScanner.HasPlayableMove();
+        if (needsShuffle)
+        {
+            yield return PlayShuffleVisualTransition(true);
+        }
+
+        TurnEndResolution resolution = _turnEndResolver.ResolveAfterBoardStable(false);
+        if (resolution.ShuffleTriggered)
+        {
+            _sessionLog.MarkLastTurnShuffle(true, resolution.ShuffleSucceeded, resolution.ShuffleAttempts);
+            _rocketHintSystem?.UpdateHints();
+        }
+
+        if (needsShuffle)
+        {
+            yield return PlayShuffleVisualTransition(false);
+        }
+    }
+
+    private TurnEndResolver CreateTurnEndResolver()
+    {
+        _noMoveScanner = new NoMoveScanner(_gridSystem, _minMatchSize);
+        _shuffleSystem = new ShuffleSystem(_gridSystem, _minMatchSize, _cellSize, GameRng.Shared, _shuffleMaxAttempts);
+        return new TurnEndResolver(_noMoveScanner, _shuffleSystem);
+    }
+
+    private void UpdateLastTurnResult()
+    {
+        string state = "Playing";
+        if (_gameStateController.IsGameOver)
+        {
+            state = _goalTracker.IsComplete ? "Won" : "Lost";
+        }
+
+        _sessionLog.UpdateLastTurnResult(state, _turnProcessor.RemainingMoves, _goalTracker.Counts);
+    }
+
+    public string ExportSessionLog()
+    {
+        return _sessionLog != null ? _sessionLog.ToJsonLikeString() : "{}";
+    }
+
+    public BoardSnapshot CaptureBoardSnapshot()
+    {
+        return _gridSystem != null ? BoardSnapshot.FromGrid(_gridSystem) : null;
+    }
+
+    private IEnumerator PlayShuffleVisualTransition(bool beforeShuffle)
+    {
+        if (_shuffleVisualDuration <= 0f || _gridSystem == null)
+        {
+            yield break;
+        }
+
+        float endScale = beforeShuffle ? 0.88f : 1f;
+        Sequence sequence = DOTween.Sequence();
+        bool hasTween = false;
+
+        for (int x = 0; x < _gridSystem.Width; x++)
+        {
+            for (int y = 0; y < _gridSystem.Height; y++)
+            {
+                IBoardItem item = _gridSystem.GetItem(x, y);
+                if (item == null || item.GetItemType() != ItemType.Cube)
+                {
+                    continue;
+                }
+
+                GameObject go = item.GetGameObject();
+                if (go != null)
+                {
+                    go.transform.DOKill();
+                    sequence.Join(
+                        go.transform
+                            .DOScale(Vector3.one * endScale, _shuffleVisualDuration)
+                            .SetEase(Ease.InOutSine)
+                    );
+                    hasTween = true;
+                }
+            }
+        }
+
+        if (!hasTween)
+        {
+            sequence.Kill();
+            yield break;
+        }
+
+        yield return sequence.WaitForCompletion();
     }
 
     private void PlaySound(AudioClip clip)

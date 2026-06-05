@@ -63,7 +63,9 @@ internal static class LevelSceneReferenceRepairer
             changed |= SetObjectReference(boardSetup, "_camera", FindComponentInScene<Camera>(scene));
             changed |= SetFloat(boardSetup, "_backgroundPaddingX", 0.1f);
             changed |= SetFloat(boardSetup, "_backgroundPaddingY", 0.1f);
-            changed |= SetFloat(boardSetup, "_cameraPadding", 2.0f);
+            changed |= SetFloat(boardSetup, "_cameraPadding", 0.15f);
+            changed |= SetFloat(boardSetup, "_verticalCameraPadding", 1.1f);
+            changed |= SetFloat(boardSetup, "_targetBoardViewportWidth", 0.97f);
             changed |= SetFloat(boardSetup, "_cameraOffsetY", 2.0f);
         }
 

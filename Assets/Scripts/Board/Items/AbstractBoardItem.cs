@@ -1,9 +1,12 @@
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using System;
 
 public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerClickHandler
 {
+    private const float DefaultCellSize = 1.0f;
+
     public int X { get; private set; }
     public int Y { get; private set; }
 
@@ -29,30 +32,31 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
         
         if (gameObject.activeInHierarchy)
         {
-            MoveToPosition(new Vector3(X * 1.0f, targetY * 1.0f, 0f), duration); 
+            MoveToPosition(new Vector3(X * DefaultCellSize, targetY * DefaultCellSize, 0f), duration);
         }
     }
     
     public void MoveToPosition(Vector3 targetLocalPos, float duration)
     {
-        StopAllCoroutines();
-        StartCoroutine(AnimateMove(targetLocalPos, duration));
-    }
-
-    private System.Collections.IEnumerator AnimateMove(Vector3 targetPos, float duration)
-    {
-        float t = 0;
-        Vector3 startPos = transform.localPosition;
-        while (t < 1f)
+        transform.DOKill();
+        if (duration <= 0f)
         {
-            t += Time.deltaTime / duration;
-            transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
-            yield return null;
+            transform.localPosition = targetLocalPos;
+            return;
         }
-        transform.localPosition = targetPos;
+
+        transform
+            .DOLocalMove(targetLocalPos, duration)
+            .SetEase(Ease.OutQuad)
+            .SetTarget(transform);
     }
     
     public GameObject GetGameObject() => gameObject;
+
+    protected virtual void OnDestroy()
+    {
+        transform.DOKill();
+    }
 
     public virtual void OnItemCreated() { }
 

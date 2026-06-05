@@ -18,8 +18,11 @@ public class RocketProjectile : MonoBehaviour
 
     private AudioSource _audioSource;
     private Action<RocketProjectile> _releaseToPool;
+    private bool _isCancelled;
+    private bool _isReleased;
 
     public string PoolKey { get; private set; }
+    public bool IsCancelled => _isCancelled;
 
     public void Init(Vector2 direction, int startX, int startY, float cellSize, GridSystem grid, Action<int, int> onCellHit, AudioClip loopSfx = null, int maxRange = -1, Action<RocketProjectile> releaseToPool = null)
     {
@@ -31,6 +34,8 @@ public class RocketProjectile : MonoBehaviour
         _onCellHit = onCellHit;
         _releaseToPool = releaseToPool;
         _speed = 12f; 
+        _isCancelled = false;
+        _isReleased = false;
 
         _startX = startX;
         _startY = startY;
@@ -173,6 +178,11 @@ public class RocketProjectile : MonoBehaviour
 
     private void Update()
     {
+        if (_isCancelled || _isReleased)
+        {
+            return;
+        }
+
         transform.position += (Vector3)_direction * _speed * Time.deltaTime;
 
         Vector3 localPos = transform.localPosition;
@@ -216,7 +226,10 @@ public class RocketProjectile : MonoBehaviour
             
             if (_gridSystem.IsValid(x, y))
             {
-                _onCellHit?.Invoke(x, y);
+                if (!_isCancelled)
+                {
+                    _onCellHit?.Invoke(x, y);
+                }
             }
             else
             {
@@ -231,8 +244,27 @@ public class RocketProjectile : MonoBehaviour
         PoolKey = poolKey;
     }
 
+    public void Cancel()
+    {
+        if (_isReleased)
+        {
+            return;
+        }
+
+        _isCancelled = true;
+        _onCellHit = null;
+        Release();
+    }
+
     private void Release()
     {
+        if (_isReleased)
+        {
+            return;
+        }
+
+        _isReleased = true;
+
         if (_audioSource != null)
         {
             _audioSource.Stop();

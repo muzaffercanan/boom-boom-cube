@@ -165,7 +165,7 @@ public class ItemFactory : ScriptableObject
             return itemId;
         }
 
-        return RandomColors[Random.Range(0, RandomColors.Length)];
+        return RandomColors[GameRng.Shared.Range(0, RandomColors.Length)];
     }
 
     private CubeColor ParseColor(ItemId itemId)

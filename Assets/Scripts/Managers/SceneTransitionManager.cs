@@ -1,11 +1,11 @@
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
 
 /// <summary>
-/// Manages scene transitions with a fade effect using native Unity Coroutines.
-/// No external dependencies required.
+/// Manages scene transitions with a fade effect.
 /// </summary>
 public class SceneTransitionManager : MonoBehaviour
 {
@@ -74,7 +74,7 @@ public class SceneTransitionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Generic Fade Coroutine using Mathf.Lerp
+    /// Generic fade coroutine backed by DOTween.
     /// </summary>
     private IEnumerator Fade(float startAlpha, float endAlpha, float duration)
     {
@@ -82,18 +82,24 @@ public class SceneTransitionManager : MonoBehaviour
 
         if (endAlpha > 0.5f) _faderCanvasGroup.blocksRaycasts = true;
 
-        float elapsedTime = 0f;
-        while (elapsedTime < duration)
+        _faderCanvasGroup.DOKill();
+        _faderCanvasGroup.alpha = startAlpha;
+        if (duration <= 0f)
         {
-            elapsedTime += Time.deltaTime;
-            float t = elapsedTime / duration;
-            t = t * t * (3f - 2f * t); 
-            
-            _faderCanvasGroup.alpha = Mathf.Lerp(startAlpha, endAlpha, t);
-            yield return null;
+            _faderCanvasGroup.alpha = endAlpha;
         }
-
-        _faderCanvasGroup.alpha = endAlpha;
+        else
+        {
+            yield return DOTween
+                .To(
+                    () => _faderCanvasGroup.alpha,
+                    alpha => _faderCanvasGroup.alpha = alpha,
+                    endAlpha,
+                    duration)
+                .SetEase(Ease.InOutSine)
+                .SetTarget(_faderCanvasGroup)
+                .WaitForCompletion();
+        }
 
         if (endAlpha < 0.5f) _faderCanvasGroup.blocksRaycasts = false;
     }

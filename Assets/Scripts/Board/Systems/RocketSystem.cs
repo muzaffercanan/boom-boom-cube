@@ -12,8 +12,12 @@ public class RocketSystem
     private readonly MonoBehaviour _coroutineRunner;
     private readonly AudioClip _rocketSfx;
     private readonly Dictionary<string, ObjectPool<GameObject>> _projectilePools = new Dictionary<string, ObjectPool<GameObject>>();
+    private readonly HashSet<RocketProjectile> _activeProjectiles = new HashSet<RocketProjectile>();
 
     private System.Action<Vector2Int> _onDamageRequest;
+    private int _activeProjectileCount;
+
+    public int ActiveProjectileCount => _activeProjectileCount;
 
     public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, float cellSize, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null)
     {
@@ -167,7 +171,49 @@ public class RocketSystem
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();
 
         projectileComp.SetPoolKey(poolKey);
-        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange, ReleaseProjectile);
+        _activeProjectileCount++;
+        _activeProjectiles.Add(projectileComp);
+        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange, ReleaseTrackedProjectile);
+    }
+
+    public IEnumerator WaitForProjectilesToComplete(float timeoutSeconds = 2.5f)
+    {
+        float elapsed = 0f;
+
+        while (_activeProjectileCount > 0 && elapsed < timeoutSeconds)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (_activeProjectileCount > 0)
+        {
+            Debug.LogWarning($"[RocketSystem] Projectile completion timed out. Active projectiles: {_activeProjectileCount}");
+            CancelActiveProjectiles();
+        }
+    }
+
+    public void CancelActiveProjectiles()
+    {
+        if (_activeProjectiles.Count == 0)
+        {
+            _activeProjectileCount = 0;
+            return;
+        }
+
+        RocketProjectile[] projectiles = new RocketProjectile[_activeProjectiles.Count];
+        _activeProjectiles.CopyTo(projectiles);
+
+        foreach (RocketProjectile projectile in projectiles)
+        {
+            if (projectile != null)
+            {
+                projectile.Cancel();
+            }
+        }
+
+        _activeProjectiles.Clear();
+        _activeProjectileCount = 0;
     }
 
     private void OnProjectileHitCell(int x, int y)
@@ -223,5 +269,12 @@ public class RocketSystem
         }
 
         Object.Destroy(projectile.gameObject);
+    }
+
+    private void ReleaseTrackedProjectile(RocketProjectile projectile)
+    {
+        _activeProjectiles.Remove(projectile);
+        ReleaseProjectile(projectile);
+        _activeProjectileCount = Mathf.Max(0, _activeProjectileCount - 1);
     }
 }

@@ -56,9 +56,11 @@ public class GravitySystem
         }
         else
         {
-
-            Transform t = item.GetGameObject().transform;
-            t.localPosition = targetPos;
+            GameObject go = item.GetGameObject();
+            if (go != null)
+            {
+                go.transform.localPosition = targetPos;
+            }
         }
     }
 }

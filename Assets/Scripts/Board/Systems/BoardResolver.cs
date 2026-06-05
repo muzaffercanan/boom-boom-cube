@@ -4,11 +4,22 @@ using UnityEngine;
 
 public sealed class BoardResolver
 {
+    private const float DefaultFillAnimationDelay = 0.2f;
+
     private readonly GravitySystem _gravitySystem;
-    private readonly Action _fillEmptySpaces;
+    private readonly Func<float> _fillEmptySpaces;
     private readonly Action _updateHints;
 
     public BoardResolver(GravitySystem gravitySystem, Action fillEmptySpaces, Action updateHints)
+        : this(gravitySystem, () =>
+        {
+            fillEmptySpaces?.Invoke();
+            return DefaultFillAnimationDelay;
+        }, updateHints)
+    {
+    }
+
+    public BoardResolver(GravitySystem gravitySystem, Func<float> fillEmptySpaces, Action updateHints)
     {
         _gravitySystem = gravitySystem;
         _fillEmptySpaces = fillEmptySpaces;
@@ -19,9 +30,13 @@ public sealed class BoardResolver
     {
         yield return ApplyGravityUntilStable(0.08f);
 
-        _fillEmptySpaces?.Invoke();
+        float fillAnimationDelay = _fillEmptySpaces?.Invoke() ?? 0f;
 
-        yield return new WaitForSeconds(0.2f);
+        if (fillAnimationDelay > 0f)
+        {
+            yield return new WaitForSeconds(fillAnimationDelay);
+        }
+
         yield return ApplyGravityUntilStable(0.1f);
 
         _updateHints?.Invoke();

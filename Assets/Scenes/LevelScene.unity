@@ -2272,7 +2272,9 @@ MonoBehaviour:
   _backgroundPaddingX: 0.1
   _backgroundPaddingY: 0.1
   _camera: {fileID: 1927722052}
-  _cameraPadding: 2
+  _cameraPadding: 0.15
+  _verticalCameraPadding: 1.1
+  _targetBoardViewportWidth: 0.97
   _cameraOffsetY: 2
 --- !u!4 &2143901850
 Transform:
