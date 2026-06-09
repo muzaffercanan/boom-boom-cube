@@ -1,8 +1,16 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.UI
+{
 public class LevelButtonController : MonoBehaviour
 {
     private int _targetLevel;
@@ -11,13 +19,20 @@ public class LevelButtonController : MonoBehaviour
     [SerializeField] private Button _button;
     [SerializeField] private TMP_Text _buttonText; 
     [SerializeField] private AudioClip _clickSound; 
+    private IAudioService _audioService;
+    private IProgressService _progressService;
+    private ISceneLoadService _sceneLoadService;
 
     private void Start()
     {
+        _audioService = new UnityAudioService();
+        _progressService = new PlayerPrefsProgressService();
+        _sceneLoadService = new UnitySceneLoadService();
+
         if (_button == null)
             _button = GetComponent<Button>();
 
-        _targetLevel = ProgressService.GetLastPlayedLevel();
+        _targetLevel = _progressService.GetLastPlayedLevel();
 
         UpdateVisuals();
 
@@ -57,8 +72,7 @@ public class LevelButtonController : MonoBehaviour
 
     void LoadLevel()
     {
-        if (AudioManager.Instance != null && _clickSound != null) 
-            AudioManager.Instance.PlaySFX(_clickSound);
+        _audioService.PlaySfx(_clickSound);
 
         if (_targetLevel > MAX_LEVELS) return;
 
@@ -66,15 +80,8 @@ public class LevelButtonController : MonoBehaviour
         Debug.Log($"[LevelButtonController] Loading Level {_targetLevel}");
 #endif
         
-        ProgressService.SetSelectedLevel(_targetLevel);
-        
-        if (SceneTransitionManager.Instance != null)
-        {
-            SceneTransitionManager.Instance.LoadScene(SceneNames.Level);
-        }
-        else
-        {
-            SceneManager.LoadScene(SceneNames.Level);
-        }
+        _progressService.SetSelectedLevel(_targetLevel);
+        _sceneLoadService.LoadScene(SceneNames.Level);
     }
+}
 }

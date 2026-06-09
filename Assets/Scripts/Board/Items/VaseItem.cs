@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Items
+{
 public class VaseItem : ObstacleItem, IFallable
 {
     public bool CanFall() => true;
@@ -36,4 +45,5 @@ public class VaseItem : ObstacleItem, IFallable
             spriteRenderer.sprite = (_health == 1) ? _damagedSprite : _healthySprite;
         }
     }
+}
 }

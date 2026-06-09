@@ -1,5 +1,14 @@
 using System.Collections.Generic;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public sealed class GoalTracker
 {
     private readonly Dictionary<string, int> _counts = new Dictionary<string, int>();
@@ -38,6 +47,13 @@ public sealed class GoalTracker
         }
     }
 
+    public void DebugCompleteAll()
+    {
+        var keys = new List<string>(_counts.Keys);
+        foreach (string key in keys)
+            _counts[key] = 0;
+    }
+
     public bool TryRecordDestroyed(IBoardItem item)
     {
         string goalId = GetGoalIdFromItem(item);
@@ -62,4 +78,5 @@ public sealed class GoalTracker
         if (item is VaseItem) return ItemIds.Vase;
         return null;
     }
+}
 }

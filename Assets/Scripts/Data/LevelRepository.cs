@@ -3,7 +3,16 @@ using System.Collections;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Data
+{
 public sealed class LevelLoadResult
 {
     public bool Success { get; }
@@ -222,4 +231,5 @@ public static class LevelRepository
 
         return "file://" + path.Replace("\\", "/");
     }
+}
 }

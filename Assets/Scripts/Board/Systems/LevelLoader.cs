@@ -1,6 +1,15 @@
 using UnityEngine;
 using System;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public class LevelLoader
 {
     private ItemFactory _factory;
@@ -37,6 +46,7 @@ public class LevelLoader
 
         LogBoardParent();
 
+        ClearBoardParent();
         gridSystem.Initialize(data.grid_width, data.grid_height);
 
         int index = 0;
@@ -95,6 +105,22 @@ public class LevelLoader
         BoardDebug.LogBoardParent(_boardParent);
     }
 
+    private void ClearBoardParent()
+    {
+        for (int i = _boardParent.childCount - 1; i >= 0; i--)
+        {
+            Transform child = _boardParent.GetChild(i);
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(child.gameObject);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(child.gameObject);
+            }
+        }
+    }
+
     private void LogDebug(string message)
     {
         if (!ShouldLogDebug()) return;
@@ -109,4 +135,5 @@ public class LevelLoader
         return false;
 #endif
     }
+}
 }

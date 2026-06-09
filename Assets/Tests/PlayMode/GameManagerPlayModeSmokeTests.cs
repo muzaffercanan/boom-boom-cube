@@ -4,7 +4,16 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Tests.PlayMode
+{
 public class GameManagerPlayModeSmokeTests
 {
     private const int TestLevel = 1;
@@ -82,7 +91,69 @@ public class GameManagerPlayModeSmokeTests
         Assert.IsFalse(manager.IsProcessingTurn);
     }
 
-    private GameManager CreateGameManager()
+    [UnityTest]
+    public IEnumerator BoardAnimationProfile_ControlsSpawnDurationInPlayMode()
+    {
+        BoardAnimationConfig animationConfig = new BoardAnimationConfig
+        {
+            SpawnRowsAboveBoard = 2f,
+            FallMoveDuration = 0.2f,
+            GravityStepDelay = 0f,
+            LandingBounceDuration = 0f,
+            SpawnStartScale = 1f
+        };
+        GameManager manager = CreateGameManager(animationConfig);
+        yield return WaitForLoadedBoard(manager);
+
+        GridSystem grid = GetPrivateField<GridSystem>(manager, "_gridSystem");
+        BoardFiller boardFiller = GetPrivateField<BoardFiller>(manager, "_boardFiller");
+
+        grid.DestroyItem(0, 0);
+        yield return null;
+
+        float duration = boardFiller.FillEmptySpaces();
+        float fallCells = grid.Height + animationConfig.SpawnRowsAboveBoard;
+        float expectedDuration = animationConfig.GetFallTotalTime(fallCells, 0);
+
+        Assert.AreEqual(expectedDuration, duration, 0.0001f);
+    }
+
+    [UnityTest]
+    public IEnumerator GameManager_LoadLevelAfterGameOverReactivatesBoardAndAcceptsInput()
+    {
+        GameManager manager = CreateGameManager();
+        yield return WaitForLoadedBoard(manager);
+
+        BoardSceneReferences references = GetPrivateField<BoardSceneReferences>(manager, "_references");
+        Transform boardParent = references.BoardParent;
+        GameStateController gameStateController = GetPrivateField<GameStateController>(manager, "_gameStateController");
+
+        gameStateController.CheckAndResolve(0, TestLevel);
+        InvokePrivate(manager, "OnTurnComplete");
+
+        Assert.IsTrue(gameStateController.IsGameOver);
+        Assert.IsFalse(boardParent.gameObject.activeSelf);
+
+        manager.LoadLevel(CreateInlineLevel(2));
+        yield return null;
+
+        Assert.IsTrue(boardParent.gameObject.activeSelf);
+        Assert.IsFalse(gameStateController.IsGameOver);
+
+        GridSystem grid = GetPrivateField<GridSystem>(manager, "_gridSystem");
+        NoMoveScanner scanner = new NoMoveScanner(grid, 2);
+        Assert.IsTrue(scanner.TryFindPlayableMove(out PlayableMove move));
+
+        int movesBefore = manager.RemainingMoves;
+        InvokePrivate(manager, "OnItemClicked", move.X, move.Y);
+
+        Assert.IsTrue(manager.IsProcessingTurn);
+        yield return new WaitUntil(() => !manager.IsProcessingTurn);
+
+        Assert.AreEqual(movesBefore - 1, manager.RemainingMoves);
+    }
+
+    private GameManager CreateGameManager(BoardAnimationConfig animationConfig = null)
     {
         ProgressService.SetSelectedLevel(TestLevel);
 
@@ -98,16 +169,33 @@ public class GameManagerPlayModeSmokeTests
         ItemFactory factory = CreateRuntimeFactory(root.transform);
 
         GameManager manager = root.AddComponent<GameManager>();
-        SetPrivateField(manager, "_itemFactory", factory);
-        SetPrivateField(manager, "_boardParent", boardParent);
-        SetPrivateField(manager, "_cellSize", 1f);
-        SetPrivateField(manager, "_levelButton", levelButton);
-        SetPrivateField(manager, "_useSessionSeedOverride", true);
-        SetPrivateField(manager, "_sessionSeedOverride", 4242);
-        SetPrivateField(manager, "_enableSessionLog", true);
-        SetPrivateField(manager, "_writeSessionLogToConsole", false);
-        SetPrivateField(manager, "_enableTurnSnapshots", true);
-        SetPrivateField(manager, "_shuffleVisualDuration", 0f);
+        SetPrivateField(manager, "_references", new BoardSceneReferences
+        {
+            ItemFactory = factory,
+            BoardParent = boardParent,
+            LevelButton = levelButton,
+            CellSize = 1f
+        });
+        SetPrivateField(manager, "_levelConfig", new LevelLoadConfig());
+        SetPrivateField(manager, "_rulesConfig", new GameplayRulesConfig
+        {
+            MinMatchSize = 2,
+            RocketMatchSize = 4,
+            EnableNoMoveShuffle = true,
+            ShuffleMaxAttempts = 20,
+            ShuffleVisualDuration = 0f,
+            BoardAnimation = animationConfig ?? BoardAnimationConfig.Default
+        });
+        SetPrivateField(manager, "_sessionConfig", new SessionConfig
+        {
+            UseSessionSeedOverride = true,
+            SessionSeedOverride = 4242,
+            EnableSessionLog = true,
+            WriteSessionLogToConsole = false,
+            EnableTurnSnapshots = true
+        });
+        SetPrivateField(manager, "_audioConfig", new GameAudioConfig());
+        SetPrivateField(manager, "_groupedConfigInitialized", true);
 
         return manager;
     }
@@ -162,6 +250,23 @@ public class GameManagerPlayModeSmokeTests
         yield return null;
     }
 
+    private static LevelData CreateInlineLevel(int levelNumber)
+    {
+        return new LevelData
+        {
+            level_number = levelNumber,
+            grid_width = 3,
+            grid_height = 1,
+            move_count = 5,
+            grid = new List<string>
+            {
+                ItemIds.Red,
+                ItemIds.Red,
+                ItemIds.Blue
+            }
+        };
+    }
+
     private static void SetPrivateField(object target, string fieldName, object value)
     {
         FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -182,4 +287,5 @@ public class GameManagerPlayModeSmokeTests
         Assert.IsNotNull(method, $"Missing method: {methodName}");
         method.Invoke(target, args);
     }
+}
 }

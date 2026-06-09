@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 public class BoardSetupController : MonoBehaviour
 {
     [Header("Background")]
@@ -9,9 +18,6 @@ public class BoardSetupController : MonoBehaviour
 
     [Header("Camera")]
     [SerializeField] private Camera _camera;
-    [SerializeField] private float _cameraPadding = 0.15f;
-    [SerializeField] private float _verticalCameraPadding = 1.1f;
-    [SerializeField, Range(0.5f, 1.0f)] private float _targetBoardViewportWidth = 0.97f;
     [SerializeField] private float _cameraOffsetY = 2.0f;
 
     public void SetupForLevel(LevelData levelData, Transform boardParent, float cellSize)
@@ -58,82 +64,26 @@ public class BoardSetupController : MonoBehaviour
         if (_camera == null) _camera = Camera.main;
         if (_camera == null) return;
 
-        Bounds boardBounds = CalculateBoardBounds(levelData, boardParent, cellSize);
-        Vector3 worldCenter = boardBounds.center;
-        worldCenter.y += _cameraOffsetY;
-        worldCenter.z = -10f;
-        _camera.transform.position = worldCenter;
-
         float screenRatio = Screen.height > 0
             ? (float)Screen.width / Screen.height
             : _camera.aspect;
-        if (screenRatio <= 0f)
-        {
-            screenRatio = 1f;
-        }
+        if (screenRatio <= 0f) screenRatio = 1f;
 
-        float targetViewportWidth = Mathf.Clamp(_targetBoardViewportWidth, 0.5f, 1.0f);
-        float paddedBoardWidth = boardBounds.size.x + _cameraPadding * 2f;
-        float widthBasedSize = paddedBoardWidth / (2f * screenRatio * targetViewportWidth);
-        float heightBasedSize = boardBounds.size.y / 2f + _verticalCameraPadding + Mathf.Abs(_cameraOffsetY);
+        float boardWidth = levelData.grid_width * cellSize;
+        float boardHeight = levelData.grid_height * cellSize;
 
-        _camera.orthographicSize = Mathf.Max(widthBasedSize, heightBasedSize);
+        // Board item centers are at x*cellSize, y*cellSize; visual extents add ±cellSize/2
+        float localCenterX = (boardWidth - cellSize) / 2f;
+        float localCenterY = (boardHeight - cellSize) / 2f;
+        Vector3 worldCenter = boardParent != null
+            ? boardParent.TransformPoint(new Vector3(localCenterX, localCenterY, 0f))
+            : new Vector3(localCenterX, localCenterY, 0f);
+
+        _camera.transform.position = new Vector3(worldCenter.x, worldCenter.y + _cameraOffsetY, -10f);
+
+        // Background frame border (_backgroundPaddingX each side) fills exactly to screen edge
+        float visibleWidth = boardWidth + _backgroundPaddingX * 2f;
+        _camera.orthographicSize = visibleWidth / (2f * screenRatio);
     }
-
-    private Bounds CalculateBoardBounds(LevelData levelData, Transform boardParent, float cellSize)
-    {
-        bool hasBounds = false;
-        Bounds bounds = new Bounds();
-
-        if (boardParent != null)
-        {
-            SpriteRenderer[] renderers = boardParent.GetComponentsInChildren<SpriteRenderer>();
-            foreach (SpriteRenderer renderer in renderers)
-            {
-                if (renderer == null || !renderer.enabled)
-                {
-                    continue;
-                }
-
-                if (!hasBounds)
-                {
-                    bounds = renderer.bounds;
-                    hasBounds = true;
-                }
-                else
-                {
-                    bounds.Encapsulate(renderer.bounds);
-                }
-            }
-        }
-
-        if (_gridBackgroundRenderer != null && _gridBackgroundRenderer.enabled)
-        {
-            if (!hasBounds)
-            {
-                bounds = _gridBackgroundRenderer.bounds;
-                hasBounds = true;
-            }
-            else
-            {
-                bounds.Encapsulate(_gridBackgroundRenderer.bounds);
-            }
-        }
-
-        if (hasBounds)
-        {
-            return bounds;
-        }
-
-        float gridWidth = levelData.grid_width * cellSize;
-        float gridHeight = levelData.grid_height * cellSize;
-        Vector3 centerPos = new Vector3(
-            (gridWidth - cellSize) / 2f,
-            (gridHeight - cellSize) / 2f,
-            0f
-        );
-        Vector3 worldCenter = boardParent != null ? boardParent.TransformPoint(centerPos) : centerPos;
-
-        return new Bounds(worldCenter, new Vector3(gridWidth, gridHeight, 0f));
-    }
+}
 }

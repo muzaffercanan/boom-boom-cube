@@ -1,9 +1,17 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using TMPro;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 public class UIManager : MonoBehaviour
 {
     [Header("Main References")]
@@ -29,9 +37,12 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Button _loseCloseButton;
 
     private Dictionary<string, GoalItemView> _goalViews = new Dictionary<string, GoalItemView>();
+    private IGameplayEventBus _eventBus;
+    private ISceneLoadService _sceneLoadService;
 
     private void Awake()
     {
+        EnsureServices();
 
         if (_winMainMenuButton) _winMainMenuButton.onClick.AddListener(OnMainMenuClicked);
         if (_loseTryAgainButton) _loseTryAgainButton.onClick.AddListener(OnTryAgainClicked);
@@ -44,20 +55,24 @@ public class UIManager : MonoBehaviour
 
     private void OnEnable()
     {
-        GameEvents.OnLevelLoaded += OnLevelLoaded;
-        GameEvents.OnMovesUpdated += OnMovesUpdated;
-        GameEvents.OnGoalsUpdated += OnGoalsUpdated;
-        GameEvents.OnLevelWon += OnLevelWin;
-        GameEvents.OnLevelLost += OnLevelLose;
+        EnsureServices();
+
+        _eventBus.LevelLoaded += OnLevelLoaded;
+        _eventBus.MovesUpdated += OnMovesUpdated;
+        _eventBus.GoalsUpdated += OnGoalsUpdated;
+        _eventBus.LevelWon += OnLevelWin;
+        _eventBus.LevelLost += OnLevelLose;
     }
 
     private void OnDisable()
     {
-        GameEvents.OnLevelLoaded -= OnLevelLoaded;
-        GameEvents.OnMovesUpdated -= OnMovesUpdated;
-        GameEvents.OnGoalsUpdated -= OnGoalsUpdated;
-        GameEvents.OnLevelWon -= OnLevelWin;
-        GameEvents.OnLevelLost -= OnLevelLose;
+        if (_eventBus == null) return;
+
+        _eventBus.LevelLoaded -= OnLevelLoaded;
+        _eventBus.MovesUpdated -= OnMovesUpdated;
+        _eventBus.GoalsUpdated -= OnGoalsUpdated;
+        _eventBus.LevelWon -= OnLevelWin;
+        _eventBus.LevelLost -= OnLevelLose;
     }
 
     private void OnLevelLoaded(LevelData level, Dictionary<string, int> goals)
@@ -185,7 +200,8 @@ public class UIManager : MonoBehaviour
 
     private void OnTryAgainClicked()
     {
-        LoadSceneSafe(SceneManager.GetActiveScene().name);
+        EnsureServices();
+        LoadSceneSafe(_sceneLoadService.ActiveSceneName);
     }
 
     private void OnMainMenuClicked()
@@ -195,13 +211,14 @@ public class UIManager : MonoBehaviour
 
     private void LoadSceneSafe(string sceneName)
     {
-        if (SceneTransitionManager.Instance != null)
-        {
-            SceneTransitionManager.Instance.LoadScene(sceneName);
-        }
-        else
-        {
-            SceneManager.LoadScene(sceneName);
-        }
+        EnsureServices();
+        _sceneLoadService.LoadScene(sceneName);
     }
+
+    private void EnsureServices()
+    {
+        if (_eventBus == null) _eventBus = new StaticGameplayEventBus();
+        if (_sceneLoadService == null) _sceneLoadService = new UnitySceneLoadService();
+    }
+}
 }

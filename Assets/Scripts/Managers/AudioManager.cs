@@ -1,6 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 public class AudioManager : MonoBehaviour
 {
     private const string MusicVolumeKey = "Audio.MusicVolume";
@@ -99,4 +108,5 @@ public class AudioManager : MonoBehaviour
     {
         UpdateVolumes();
     }
+}
 }

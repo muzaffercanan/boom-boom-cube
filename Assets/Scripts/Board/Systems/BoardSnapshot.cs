@@ -1,6 +1,15 @@
 using System;
 using System.Text;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public sealed class BoardSnapshot
 {
     private readonly CellSnapshot[,] _cells;
@@ -156,4 +165,5 @@ public readonly struct CellSnapshot
 
         return builder.ToString();
     }
+}
 }

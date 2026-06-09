@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public sealed class TurnEndResolver
 {
     private readonly NoMoveScanner _noMoveScanner;
@@ -88,4 +97,5 @@ public enum TurnEndResolutionStatus
     PlayableMoveAvailable,
     NoMoveWithoutShuffle,
     ShuffleAttempted
+}
 }

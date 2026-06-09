@@ -2,7 +2,16 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using System;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Items
+{
 public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerClickHandler
 {
     private const float DefaultCellSize = 1.0f;
@@ -10,7 +19,18 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
     public int X { get; private set; }
     public int Y { get; private set; }
 
+    private SpriteRenderer[] _renderers;
+    private int[] _baseSortingOrders;
+
     protected Action<int, int> _onClickCallback;
+
+    protected virtual void Awake()
+    {
+        _renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        _baseSortingOrders = new int[_renderers.Length];
+        for (int i = 0; i < _renderers.Length; i++)
+            _baseSortingOrders[i] = _renderers[i].sortingOrder;
+    }
 
     public void Init(Action<int, int> onClickCallback)
     {
@@ -22,6 +42,17 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
         X = x;
         Y = y;
         gameObject.name = $"{GetItemType()}_{X}_{Y}";
+        ApplySortingOrder(y);
+    }
+
+    private void ApplySortingOrder(int y)
+    {
+        if (_renderers == null) return;
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            if (_renderers[i] != null)
+                _renderers[i].sortingOrder = _baseSortingOrders[i] + y * 10;
+        }
     }
 
     public abstract ItemType GetItemType();
@@ -38,6 +69,11 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
     
     public void MoveToPosition(Vector3 targetLocalPos, float duration)
     {
+        MoveToPosition(targetLocalPos, duration, Ease.OutQuad);
+    }
+
+    public void MoveToPosition(Vector3 targetLocalPos, float duration, Ease ease)
+    {
         transform.DOKill();
         if (duration <= 0f)
         {
@@ -47,8 +83,41 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
 
         transform
             .DOLocalMove(targetLocalPos, duration)
-            .SetEase(Ease.OutQuad)
+            .SetEase(ease)
             .SetTarget(transform);
+    }
+
+    public void FallToPosition(Vector3 targetLocalPos, float duration, float bounceHeight, float bounceDuration)
+    {
+        FallToPositionDelayed(targetLocalPos, 0f, duration, bounceHeight, bounceDuration);
+    }
+
+    public void FallToPositionDelayed(Vector3 targetLocalPos, float delay, float duration, float bounceHeight, float bounceDuration)
+    {
+        transform.DOKill();
+        if (duration <= 0f)
+        {
+            transform.localPosition = targetLocalPos;
+            return;
+        }
+
+        Sequence seq = DOTween.Sequence().SetTarget(transform);
+        if (delay > 0f)
+            seq.AppendInterval(delay);
+
+        seq.Append(transform.DOLocalMove(targetLocalPos, duration).SetEase(Ease.InQuad));
+
+        if (bounceHeight > 0f && bounceDuration > 0f)
+        {
+            seq.Append(transform.DOLocalMoveY(targetLocalPos.y + bounceHeight, bounceDuration * 0.4f).SetEase(Ease.OutQuad));
+            seq.Append(transform.DOLocalMoveY(targetLocalPos.y, bounceDuration * 0.6f).SetEase(Ease.InQuad));
+        }
+    }
+
+    public void SnapToPosition(Vector3 targetLocalPos)
+    {
+        transform.DOKill();
+        transform.localPosition = targetLocalPos;
     }
     
     public GameObject GetGameObject() => gameObject;
@@ -155,4 +224,5 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
         tex.filterMode = FilterMode.Bilinear;
         return tex;
     }
+}
 }

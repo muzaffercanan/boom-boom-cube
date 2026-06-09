@@ -1,6 +1,15 @@
 using UnityEditor;
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Editor
+{
 public class GameTools : EditorWindow
 {
     [MenuItem("DreamGames/Tools/Clear PlayerPrefs")]
@@ -34,4 +43,5 @@ public class GameTools : EditorWindow
         PlayerPrefs.Save();
         Debug.Log("[GameTools] Level Set to 11 (Finished State)");
     }
+}
 }

@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Items
+{
 public class BoxItem : ObstacleItem
 {
     [Header("Particles")]
@@ -17,4 +26,5 @@ public class BoxItem : ObstacleItem
     protected override void UpdateVisuals()
     {
     }
+}
 }

@@ -1,6 +1,15 @@
 using System;
 using System.Collections.Generic;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Core
+{
 public static class GameEvents
 {
     public static event Action<LevelData, Dictionary<string, int>> OnLevelLoaded;
@@ -23,4 +32,5 @@ public static class GameEvents
 
     public static void RaiseLevelLost() =>
         OnLevelLost?.Invoke();
+}
 }

@@ -1,6 +1,15 @@
 using UnityEngine;
 using UnityEditor;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Editor
+{
 public class LevelTools : EditorWindow
 {
     [MenuItem("DreamGames/Reset All Progress", priority = 1)]
@@ -33,4 +42,5 @@ public class LevelTools : EditorWindow
         PlayerPrefs.Save();
         Debug.Log($"[LevelTools] Progress forced to Level {level}.");
     }
+}
 }

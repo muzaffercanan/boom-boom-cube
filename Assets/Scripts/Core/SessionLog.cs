@@ -1,7 +1,16 @@
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Core
+{
 public sealed class SessionLog
 {
     private readonly List<TurnLogEntry> _turns = new List<TurnLogEntry>();
@@ -245,4 +254,5 @@ public sealed class TurnLogEntry
         builder.Append('}');
         return builder.ToString();
     }
+}
 }

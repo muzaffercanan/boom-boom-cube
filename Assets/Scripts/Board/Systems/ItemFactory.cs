@@ -1,6 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 [CreateAssetMenu(menuName = "DreamGames/ItemFactory")]
 public class ItemFactory : ScriptableObject
 {
@@ -179,4 +188,5 @@ public class ItemFactory : ScriptableObject
             default: return CubeColor.Red;
         }
     }
+}
 }

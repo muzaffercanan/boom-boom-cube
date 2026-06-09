@@ -1,6 +1,15 @@
 using UnityEngine;
 using System.Collections;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 public static class BoardDebug
 {
     public static void LogTransform(string tag, Transform t)
@@ -52,4 +61,5 @@ public static class BoardDebug
             depth++;
         }
     }
+}
 }

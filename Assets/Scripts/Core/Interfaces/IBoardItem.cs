@@ -1,6 +1,15 @@
 using UnityEngine;
 using System;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Core
+{
 public interface IBoardItem
 {
     int X { get; }
@@ -10,4 +19,5 @@ public interface IBoardItem
     ItemType GetItemType();
     GameObject GetGameObject();
     void PlayDestroyEffect(DamageType damageType);
+}
 }

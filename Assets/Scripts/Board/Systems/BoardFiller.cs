@@ -1,28 +1,38 @@
 using DG.Tweening;
 using UnityEngine;
 using System;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public class BoardFiller
 {
-    private const float SpawnRowsAboveBoard = 1.0f;
-    private const float SpawnBaseDuration = 0.18f;
-    private const float SpawnDurationPerCell = 0.025f;
-    private const float SpawnStagger = 0.03f;
-    private const float SpawnStartScale = 0.9f;
-
     private readonly GridSystem _gridSystem;
     private readonly ItemFactory _itemFactory;
     private readonly Transform _boardParent;
     private readonly float _cellSize;
+    private readonly BoardAnimationConfig _animationConfig;
 
     private Action<int, int> _onItemClicked;
 
-    public BoardFiller(GridSystem gridSystem, ItemFactory itemFactory, Transform boardParent, float cellSize)
+    public BoardFiller(
+        GridSystem gridSystem,
+        ItemFactory itemFactory,
+        Transform boardParent,
+        float cellSize,
+        BoardAnimationConfig animationConfig = null)
     {
         _gridSystem = gridSystem;
         _itemFactory = itemFactory;
         _boardParent = boardParent;
         _cellSize = cellSize;
+        _animationConfig = animationConfig ?? BoardAnimationConfig.Default;
     }
 
     public float LastFillAnimationDuration { get; private set; }
@@ -70,36 +80,47 @@ public class BoardFiller
         if (go == null) return 0f;
 
         Vector3 targetPosition = new Vector3(x * _cellSize, y * _cellSize, 0f);
-        float spawnY = (_gridSystem.Height + SpawnRowsAboveBoard + columnSpawnIndex) * _cellSize;
-        Vector3 spawnPosition = new Vector3(x * _cellSize, spawnY, 0f);
+
+        float spawnY = (_gridSystem.Height + _animationConfig.SpawnRowsAboveBoard + columnSpawnIndex) * _cellSize;
+        go.transform.DOKill();
+        go.transform.localPosition = new Vector3(x * _cellSize, spawnY, 0f);
 
         Vector3 targetScale = go.transform.localScale;
-        float distanceInCells = Mathf.Abs(spawnY - targetPosition.y) / Mathf.Max(_cellSize, 0.001f);
-        float moveDuration = SpawnBaseDuration + distanceInCells * SpawnDurationPerCell;
-        float delay = columnSpawnIndex * SpawnStagger;
+        go.transform.localScale = targetScale * _animationConfig.SpawnStartScale;
 
-        go.transform.DOKill();
-        go.transform.localPosition = spawnPosition;
-        go.transform.localScale = targetScale * SpawnStartScale;
+        float invSpeed = 1f / GameDebug.SpeedMultiplier;
+        float fallCells = Mathf.Max(1f, (spawnY - targetPosition.y) / _cellSize);
+        float moveDuration = _animationConfig.GetFallDuration(fallCells) * invSpeed;
+        float delay = _animationConfig.GetCascadeDelay(columnSpawnIndex) * invSpeed;
+        float bounceDuration = _animationConfig.LandingBounceDuration * invSpeed;
 
-        Sequence sequence = DOTween.Sequence().SetTarget(go.transform);
-        if (delay > 0f)
+        if (item is AbstractBoardItem boardItem)
         {
-            sequence.AppendInterval(delay);
+            boardItem.FallToPositionDelayed(
+                targetPosition,
+                delay,
+                moveDuration,
+                _animationConfig.LandingBounceHeight,
+                bounceDuration);
+        }
+        else
+        {
+            Sequence sequence = DOTween.Sequence().SetTarget(go.transform);
+            if (delay > 0f)
+            {
+                sequence.AppendInterval(delay);
+            }
+
+            sequence.Append(go.transform.DOLocalMove(targetPosition, moveDuration).SetEase(Ease.InQuad));
         }
 
-        sequence.Join(
-            go.transform
-                .DOLocalMove(targetPosition, moveDuration)
-                .SetEase(Ease.OutCubic)
-        );
-        sequence.Join(
-            go.transform
-                .DOScale(targetScale, Mathf.Min(0.12f, moveDuration))
-                .SetEase(Ease.OutQuad)
-        );
+        go.transform
+            .DOScale(targetScale, Mathf.Min(0.12f * invSpeed, moveDuration))
+            .SetEase(Ease.OutQuad)
+            .SetDelay(delay)
+            .SetTarget(go.transform);
 
-        return delay + moveDuration;
+        return delay + moveDuration + bounceDuration;
     }
 
     public void CreateRocket(int x, int y)
@@ -122,4 +143,5 @@ public class BoardFiller
 
         go.transform.localPosition = new Vector3(x * _cellSize, y * _cellSize, 0);
     }
+}
 }

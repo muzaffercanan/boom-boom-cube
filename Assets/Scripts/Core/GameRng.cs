@@ -1,5 +1,14 @@
 using System;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Core
+{
 public sealed class GameRng
 {
     private Random _random;
@@ -45,4 +54,5 @@ public sealed class GameRng
     {
         return (float)_random.NextDouble();
     }
+}
 }

@@ -1,8 +1,18 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Tests.EditMode
+{
 public class BoardSystemsEditModeTests
 {
     [Test]
@@ -207,6 +217,129 @@ public class BoardSystemsEditModeTests
         Assert.IsNull(grid.GetItem(0, 2));
         Assert.IsNull(grid.GetItem(0, 3));
         Assert.AreEqual(0, item.Y);
+    }
+
+    [Test]
+    public void GravitySystem_AnimatedGravityCompactsColumnToFinalSlots()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 4);
+        TestMatchableItem lower = new TestMatchableItem(CubeColor.Blue);
+        TestMatchableItem upper = new TestMatchableItem(CubeColor.Red);
+        grid.SetItem(0, 2, lower);
+        grid.SetItem(0, 3, upper);
+
+        GravitySystem gravitySystem = new GravitySystem(grid, 1f);
+
+        float duration = gravitySystem.ApplyGravityAndAnimate();
+
+        Assert.Greater(duration, 0f);
+        Assert.AreSame(lower, grid.GetItem(0, 0));
+        Assert.AreSame(upper, grid.GetItem(0, 1));
+        Assert.IsNull(grid.GetItem(0, 2));
+        Assert.IsNull(grid.GetItem(0, 3));
+    }
+
+    [Test]
+    public void BoardResolver_RefreshesHintsAfterEachGravityStep()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 3);
+        TestMatchableItem item = new TestMatchableItem(CubeColor.Red);
+        grid.SetItem(0, 2, item);
+
+        List<int> hintedRows = new List<int>();
+        BoardResolver resolver = new BoardResolver(
+            new GravitySystem(grid, 1f),
+            () => 0f,
+            () => hintedRows.Add(item.Y));
+
+        RunEnumerator(resolver.ApplyGravityAndFillSequence());
+
+        Assert.Contains(0, hintedRows);
+    }
+
+    [Test]
+    public void RocketHintSystem_HidesBaseSpriteWhileHintIsActive()
+    {
+        GameObject redObject = CreateRuntimeCubeObject("HintRedA", CubeColor.Red, out CubeItem redCube, out SpriteRenderer redRenderer);
+        GameObject secondObject = CreateRuntimeCubeObject("HintRedB", CubeColor.Red, out CubeItem secondCube, out _);
+
+        try
+        {
+            GridSystem grid = new GridSystem();
+            grid.Initialize(2, 1);
+            grid.SetItem(0, 0, redCube);
+            grid.SetItem(1, 0, secondCube);
+
+            MatchSystem matchSystem = new MatchSystem(grid);
+            Assert.AreEqual(2, matchSystem.FindMatches(0, 0).Count);
+
+            Sprite hintSprite = Sprite.Create(
+                Texture2D.whiteTexture,
+                new Rect(0f, 0f, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
+                new Vector2(0.5f, 0.5f));
+            RocketHintSystem hintSystem = new RocketHintSystem(grid, matchSystem, 2, _ => hintSprite);
+            hintSystem.UpdateHints();
+
+            Assert.IsFalse(redRenderer.enabled);
+            Assert.IsNotNull(redObject.transform.Find("RocketHint"));
+
+            secondCube.Init(CubeColor.Blue);
+            hintSystem.UpdateHints();
+
+            Assert.IsTrue(redRenderer.enabled);
+            Assert.IsFalse(redObject.transform.Find("RocketHint").gameObject.activeSelf);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(redObject);
+            UnityEngine.Object.DestroyImmediate(secondObject);
+        }
+    }
+
+    [Test]
+    public void BoardFiller_ReportsSpawnDurationFromAnimationConfig()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 4);
+
+        GameObject parentObject = new GameObject("BoardFillerTestParent");
+        ItemFactory factory = ScriptableObject.CreateInstance<ItemFactory>();
+        GameObject redPrefab = CreateRuntimeCubePrefab("RedCubePrefab");
+
+        try
+        {
+            factory.mappings = new List<ItemFactory.ItemPrefabMap>
+            {
+                CreateMapping(ItemId.Red, ItemIds.Red, redPrefab),
+                CreateMapping(ItemId.Green, ItemIds.Green, redPrefab),
+                CreateMapping(ItemId.Blue, ItemIds.Blue, redPrefab),
+                CreateMapping(ItemId.Yellow, ItemIds.Yellow, redPrefab)
+            };
+            SetPrivateField(factory, "_cacheDirty", true);
+
+            BoardAnimationConfig animationConfig = new BoardAnimationConfig
+            {
+                SpawnRowsAboveBoard = 2f,
+                FallMoveDuration = 0.2f,
+                GravityStepDelay = 0f,
+                LandingBounceDuration = 0f,
+                SpawnStartScale = 1f
+            };
+            BoardFiller filler = new BoardFiller(grid, factory, parentObject.transform, 1f, animationConfig);
+
+            float duration = filler.SpawnItemAt(0, 0);
+
+            float fallCells = grid.Height + animationConfig.SpawnRowsAboveBoard;
+            Assert.AreEqual(animationConfig.GetFallTotalTime(fallCells, 0), duration, 0.0001f);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(factory);
+            UnityEngine.Object.DestroyImmediate(redPrefab);
+            UnityEngine.Object.DestroyImmediate(parentObject);
+        }
     }
 
     [Test]
@@ -792,4 +925,56 @@ public class BoardSystemsEditModeTests
         return log;
     }
 
+    private static GameObject CreateRuntimeCubeObject(
+        string name,
+        CubeColor color,
+        out CubeItem cube,
+        out SpriteRenderer renderer)
+    {
+        GameObject gameObject = new GameObject(name);
+        renderer = gameObject.AddComponent<SpriteRenderer>();
+        cube = gameObject.AddComponent<CubeItem>();
+        cube.Init(color);
+        return gameObject;
+    }
+
+    private static GameObject CreateRuntimeCubePrefab(string name)
+    {
+        GameObject prefab = new GameObject(name);
+        prefab.AddComponent<SpriteRenderer>();
+        prefab.AddComponent<CubeItem>();
+        return prefab;
+    }
+
+    private static ItemFactory.ItemPrefabMap CreateMapping(ItemId itemId, string id, GameObject prefab)
+    {
+        return new ItemFactory.ItemPrefabMap
+        {
+            itemId = itemId,
+            id = id,
+            prefab = prefab
+        };
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        System.Reflection.FieldInfo field = target.GetType().GetField(
+            fieldName,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Missing field: {fieldName}");
+        field.SetValue(target, value);
+    }
+
+    private static void RunEnumerator(IEnumerator enumerator)
+    {
+        while (enumerator.MoveNext())
+        {
+            if (enumerator.Current is IEnumerator nested)
+            {
+                RunEnumerator(nested);
+            }
+        }
+    }
+
+}
 }

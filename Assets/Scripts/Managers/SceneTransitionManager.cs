@@ -3,7 +3,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 /// <summary>
 /// Manages scene transitions with a fade effect.
 /// </summary>
@@ -103,4 +112,5 @@ public class SceneTransitionManager : MonoBehaviour
 
         if (endAlpha < 0.5f) _faderCanvasGroup.blocksRaycasts = false;
     }
+}
 }

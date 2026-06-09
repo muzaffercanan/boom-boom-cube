@@ -2,7 +2,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public class RocketSystem
 {
     private readonly GridSystem _gridSystem;
@@ -277,4 +286,5 @@ public class RocketSystem
         ReleaseProjectile(projectile);
         _activeProjectileCount = Mathf.Max(0, _activeProjectileCount - 1);
     }
+}
 }

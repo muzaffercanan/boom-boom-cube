@@ -1,5 +1,14 @@
 using System.Collections.Generic;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public class MatchSystem
 {
     private GridSystem _gridSystem;
@@ -87,4 +96,5 @@ public class MatchSystem
             Y = y;
         }
     }
+}
 }

@@ -1,6 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Systems
+{
 public sealed class ShuffleSystem
 {
     private readonly GridSystem _gridSystem;
@@ -243,4 +252,5 @@ public sealed class ShuffleSystem
     {
         return item != null && item.GetItemType() == ItemType.Cube && item is IMatchable;
     }
+}
 }

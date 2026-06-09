@@ -1,6 +1,15 @@
 using System;
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Visuals
+{
 public class RocketProjectile : MonoBehaviour
 {
     private Vector2 _direction;
@@ -33,7 +42,7 @@ public class RocketProjectile : MonoBehaviour
         _gridSystem = grid;
         _onCellHit = onCellHit;
         _releaseToPool = releaseToPool;
-        _speed = 12f; 
+        _speed = GameDebug.RocketSpeed;
         _isCancelled = false;
         _isReleased = false;
 
@@ -53,7 +62,7 @@ public class RocketProjectile : MonoBehaviour
             }
             _audioSource.clip = loopSfx;
             _audioSource.loop = true;
-            _audioSource.volume = AudioManager.Instance != null ? AudioManager.Instance.SFXVolume : 1f;
+            _audioSource.volume = new UnityAudioService().SfxVolume;
             _audioSource.Play();
         }
 
@@ -288,4 +297,5 @@ public class RocketProjectile : MonoBehaviour
             }
         }
     }
+}
 }

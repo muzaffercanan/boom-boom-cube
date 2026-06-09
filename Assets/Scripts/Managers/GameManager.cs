@@ -1,41 +1,57 @@
-using DG.Tweening;
 using UnityEngine;
 using System.Collections;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Gameplay
+{
 public class GameManager : MonoBehaviour
 {
+    [Header("Configuration")]
+    [SerializeField] private BoardSceneReferences _references = new BoardSceneReferences();
+    [SerializeField] private LevelLoadConfig _levelConfig = new LevelLoadConfig();
+    [SerializeField] private GameplayRulesConfig _rulesConfig = new GameplayRulesConfig();
+    [SerializeField] private SessionConfig _sessionConfig = new SessionConfig();
+    [SerializeField] private GameAudioConfig _audioConfig = new GameAudioConfig();
+    [SerializeField, HideInInspector] private bool _groupedConfigInitialized;
+
     [Header("References")]
-    [SerializeField] private ItemFactory _itemFactory;
-    [SerializeField] private Transform _boardParent;
-    [SerializeField] private float _cellSize = 1.0f;
-    [SerializeField] private BoardSetupController _boardSetup;
-    [SerializeField] private GameObject _levelButton;
+    [SerializeField, HideInInspector] private ItemFactory _itemFactory;
+    [SerializeField, HideInInspector] private Transform _boardParent;
+    [SerializeField, HideInInspector] private float _cellSize = 1.0f;
+    [SerializeField, HideInInspector] private BoardSetupController _boardSetup;
+    [SerializeField, HideInInspector] private GameObject _levelButton;
 
     [Header("Level")]
-    [SerializeField] private TextAsset _levelJson;
-    [SerializeField] private bool _enableLevelLoaderDebugLogs;
+    [SerializeField, HideInInspector] private TextAsset _levelJson;
+    [SerializeField, HideInInspector] private bool _enableLevelLoaderDebugLogs;
 
     [Header("Game Rules")]
-    [SerializeField] private int _minMatchSize = 2;
-    [SerializeField] private int _rocketMatchSize = 4;
-    [SerializeField] private bool _enableNoMoveShuffle = true;
-    [SerializeField] private int _shuffleMaxAttempts = 20;
-    [SerializeField] private float _shuffleVisualDuration = 0.25f;
+    [SerializeField, HideInInspector] private int _minMatchSize = 2;
+    [SerializeField, HideInInspector] private int _rocketMatchSize = 4;
+    [SerializeField, HideInInspector] private bool _enableNoMoveShuffle = true;
+    [SerializeField, HideInInspector] private int _shuffleMaxAttempts = 20;
+    [SerializeField, HideInInspector] private float _shuffleVisualDuration = 0.25f;
 
     [Header("Session")]
-    [SerializeField] private bool _useSessionSeedOverride;
-    [SerializeField] private int _sessionSeedOverride;
-    [SerializeField] private bool _enableSessionLog = true;
-    [SerializeField] private bool _writeSessionLogToConsole;
-    [SerializeField] private bool _enableTurnSnapshots;
+    [SerializeField, HideInInspector] private bool _useSessionSeedOverride;
+    [SerializeField, HideInInspector] private int _sessionSeedOverride;
+    [SerializeField, HideInInspector] private bool _enableSessionLog = true;
+    [SerializeField, HideInInspector] private bool _writeSessionLogToConsole;
+    [SerializeField, HideInInspector] private bool _enableTurnSnapshots;
 
     [Header("Audio")]
-    [SerializeField] private AudioClip _backgroundMusic;
-    [SerializeField] private AudioClip _matchSfx;
-    [SerializeField] private AudioClip _tapSfx;
-    [SerializeField] private AudioClip _rocketSfx;
-    [SerializeField] private AudioClip _winSfx;
-    [SerializeField] private AudioClip _loseSfx;
+    [SerializeField, HideInInspector] private AudioClip _backgroundMusic;
+    [SerializeField, HideInInspector] private AudioClip _matchSfx;
+    [SerializeField, HideInInspector] private AudioClip _tapSfx;
+    [SerializeField, HideInInspector] private AudioClip _rocketSfx;
+    [SerializeField, HideInInspector] private AudioClip _winSfx;
+    [SerializeField, HideInInspector] private AudioClip _loseSfx;
 
     private GridSystem _gridSystem;
     private MatchSystem _matchSystem;
@@ -47,24 +63,46 @@ public class GameManager : MonoBehaviour
     private GoalTracker _goalTracker;
     private BoardFiller _boardFiller;
     private TurnProcessor _turnProcessor;
+    private BoardInputRouter _boardInputRouter;
     private TurnEndResolver _turnEndResolver;
     private NoMoveScanner _noMoveScanner;
     private ShuffleSystem _shuffleSystem;
+    private ShuffleVisualController _shuffleVisualController;
+    private TurnEndFlow _turnEndFlow;
     private SessionLog _sessionLog;
     private GameStateController _gameStateController;
-    private LevelData _currentLevel;
-    private int _currentSessionSeed;
+    private LevelSessionController _levelSessionController;
+    private IAudioService _audioService;
+    private IProgressService _progressService;
+    private IGameplayEventBus _eventBus;
 
-    public int CurrentSessionSeed => _currentSessionSeed;
+    public int CurrentSessionSeed => _levelSessionController != null ? _levelSessionController.CurrentSessionSeed : 0;
     public bool IsProcessingTurn => _turnProcessor != null && _turnProcessor.IsProcessingTurn;
     public int RemainingMoves => _turnProcessor != null ? _turnProcessor.RemainingMoves : 0;
     public SessionLog SessionLog => _sessionLog;
 
+    public GridSystem DebugGrid => _gridSystem;
+    public Transform DebugBoardParent => _references.BoardParent;
+    public float DebugCellSize => _references.CellSize;
+    public int DebugCurrentLevel => _levelSessionController?.CurrentLevel?.level_number ?? 0;
+    public bool DebugIsGameOver => _gameStateController?.IsGameOver ?? false;
+
+    private void OnValidate()
+    {
+        SyncGroupedConfigFromLegacy();
+    }
+
     private void Start()
     {
-        if (AudioManager.Instance != null)
-            AudioManager.Instance.PlayMusic(_backgroundMusic);
+        SyncGroupedConfigFromLegacy();
+        EnsureServices();
+        ParticlePool.Clear();
+        _audioService.PlayMusic(_audioConfig.BackgroundMusic);
         StartCoroutine(InitNextFrame());
+
+        var debugGo = new GameObject("[DebugPanel]");
+        var panel = debugGo.AddComponent<GameDebugPanel>();
+        panel.SetGameManager(this);
     }
 
     private IEnumerator InitNextFrame()
@@ -76,200 +114,258 @@ public class GameManager : MonoBehaviour
 
     private void InitializeSystems()
     {
-        _goalTracker = new GoalTracker();
-        _gridSystem = new GridSystem();
-        _matchSystem = new MatchSystem(_gridSystem);
-        _gravitySystem = new GravitySystem(_gridSystem, _cellSize);
-        _rocketHintSystem = new RocketHintSystem(_gridSystem, _matchSystem, _rocketMatchSize);
-
-        _boardFiller = new BoardFiller(_gridSystem, _itemFactory, _boardParent, _cellSize);
-        _boardFiller.SetClickCallback(OnItemClicked);
-
-        _boardResolver = new BoardResolver(
-            _gravitySystem,
-            _boardFiller.FillEmptySpaces,
-            () => _rocketHintSystem?.UpdateHints()
-        );
-
-        _sessionLog = new SessionLog(_writeSessionLogToConsole)
+        EnsureServices();
+        GameplaySystems systems = new GameplaySystemFactory().Create(new GameplaySystemFactoryConfig
         {
-            IsEnabled = _enableSessionLog,
-            IsSnapshotLoggingEnabled = _enableTurnSnapshots
-        };
+            ItemFactory = _references.ItemFactory,
+            BoardParent = _references.BoardParent,
+            CellSize = _references.CellSize,
+            LevelJson = _levelConfig.LevelJson,
+            EnableLevelLoaderDebugLogs = _levelConfig.EnableLevelLoaderDebugLogs,
+            MinMatchSize = _rulesConfig.MinMatchSize,
+            RocketMatchSize = _rulesConfig.RocketMatchSize,
+            BoardAnimation = _rulesConfig.BoardAnimation,
+            UseSessionSeedOverride = _sessionConfig.UseSessionSeedOverride,
+            SessionSeedOverride = _sessionConfig.SessionSeedOverride,
+            EnableSessionLog = _sessionConfig.EnableSessionLog,
+            WriteSessionLogToConsole = _sessionConfig.WriteSessionLogToConsole,
+            EnableTurnSnapshots = _sessionConfig.EnableTurnSnapshots,
+            MatchSfx = _audioConfig.MatchSfx,
+            TapSfx = _audioConfig.TapSfx,
+            RocketSfx = _audioConfig.RocketSfx,
+            WinSfx = _audioConfig.WinSfx,
+            LoseSfx = _audioConfig.LoseSfx,
+            CoroutineRunner = this,
+            OnTurnComplete = OnTurnComplete,
+            PlaySound = PlaySound,
+            OnBoardStableBeforeInput = OnBoardStableBeforeInput,
+            ProgressService = _progressService,
+            EventBus = _eventBus
+        });
 
-        _gameStateController = new GameStateController(_goalTracker, PlaySound, _winSfx, _loseSfx);
-
-        _turnProcessor = new TurnProcessor(
-            _gridSystem, _matchSystem, _boardResolver, _goalTracker, _boardFiller,
-            _minMatchSize, _rocketMatchSize, _cellSize,
-            onMovesChanged: GameEvents.RaiseMovesUpdated,
-            onGoalsChanged: GameEvents.RaiseGoalsUpdated,
-            onTurnComplete: OnTurnComplete,
-            playSound: PlaySound,
-            matchSfx: _matchSfx,
-            onBoardStableBeforeInput: OnBoardStableBeforeInput,
-            sessionLog: _sessionLog
-        );
-
-        _rocketSystem = new RocketSystem(
-            _gridSystem, _itemFactory, _boardParent, _cellSize, this,
-            _turnProcessor.HandleDamage, _rocketSfx
-        );
-        _turnProcessor.SetRocketSystem(_rocketSystem);
-
-        _levelLoader = new LevelLoader(_itemFactory, _boardParent, _cellSize, _enableLevelLoaderDebugLogs);
+        _gridSystem = systems.GridSystem;
+        _matchSystem = systems.MatchSystem;
+        _gravitySystem = systems.GravitySystem;
+        _rocketSystem = systems.RocketSystem;
+        _rocketHintSystem = systems.RocketHintSystem;
+        _levelLoader = systems.LevelLoader;
+        _boardResolver = systems.BoardResolver;
+        _goalTracker = systems.GoalTracker;
+        _boardFiller = systems.BoardFiller;
+        _turnProcessor = systems.TurnProcessor;
+        _boardInputRouter = systems.BoardInputRouter;
+        _sessionLog = systems.SessionLog;
+        _gameStateController = systems.GameStateController;
+        _levelSessionController = systems.LevelSessionController;
     }
 
     private IEnumerator LoadCurrentLevelRoutine()
     {
-        if (_levelButton != null) _levelButton.SetActive(false);
-        if (_boardParent != null) _boardParent.gameObject.SetActive(true);
-
-        int levelIndex = ProgressService.GetSelectedLevel();
-        LevelLoadResult result = null;
-        yield return LevelRepository.LoadLevelAsync(levelIndex, loadResult => result = loadResult, _levelJson);
-
-        if (result == null || !result.Success)
-        {
-            Debug.LogError($"[GameManager] {result?.Error ?? "Level load failed without a result."}");
-            yield break;
-        }
-
-        LoadLevel(result.LevelData);
+        PrepareBoardForLevel();
+        yield return _levelSessionController.LoadSelectedLevelRoutine(ApplyLoadedLevel);
     }
 
     public void LoadLevel(string json)
     {
-        LevelLoadResult result = LevelRepository.ParseAndValidate(json, "Inline JSON");
-        if (!result.Success)
+        if (_levelSessionController.TryBeginLevelFromJson(json))
         {
-            Debug.LogError($"[GameManager] {result.Error}");
-            return;
+            ApplyLoadedLevel(_levelSessionController.CurrentLevel);
         }
-        LoadLevel(result.LevelData);
     }
 
     public void LoadLevel(LevelData levelData)
     {
-        string error = LevelRepository.Validate(levelData);
-        if (!string.IsNullOrEmpty(error))
+        if (_levelSessionController.TryBeginLevel(levelData))
         {
-            Debug.LogError($"[GameManager] Invalid level: {error}");
+            ApplyLoadedLevel(_levelSessionController.CurrentLevel);
+        }
+    }
+
+    private void ApplyLoadedLevel(LevelData levelData)
+    {
+        if (levelData == null)
+        {
             return;
         }
 
-        _currentLevel = levelData;
-        _currentSessionSeed = LevelSessionSeed.BeginSession(
-            _currentLevel.level_number,
-            _useSessionSeedOverride,
-            _sessionSeedOverride);
-        if (_sessionLog == null)
-        {
-            _sessionLog = new SessionLog(_writeSessionLogToConsole);
-        }
-        _sessionLog.IsEnabled = _enableSessionLog;
-        _sessionLog.IsSnapshotLoggingEnabled = _enableTurnSnapshots;
-        _sessionLog.BeginLevel(_currentLevel.level_number, _currentSessionSeed);
-        if (_writeSessionLogToConsole)
-        {
-            Debug.Log($"[GameManager] Level {_currentLevel.level_number} session seed: {_currentSessionSeed}");
-        }
-        _turnEndResolver = CreateTurnEndResolver();
+        PrepareBoardForLevel();
+        CreateTurnEndFlow();
 
-        _goalTracker.Initialize(_currentLevel.grid);
+        _goalTracker.Initialize(levelData.grid);
         _gameStateController.Reset();
-        _turnProcessor.SetRemainingMoves(_currentLevel.move_count);
+        _turnProcessor.ResetTurnState();
+        _turnProcessor.SetRemainingMoves(levelData.move_count);
 
-        _levelLoader.LoadLevel(_gridSystem, _currentLevel, OnItemClicked);
-        if (_boardSetup != null) _boardSetup.SetupForLevel(_currentLevel, _boardParent, _cellSize);
+        _levelLoader.LoadLevel(_gridSystem, levelData, OnItemClicked);
+        if (_references.BoardSetup != null)
+        {
+            _references.BoardSetup.SetupForLevel(levelData, _references.BoardParent, _references.CellSize);
+        }
 
         StartCoroutine(UpdateHintsNextFrame());
 
-        GameEvents.RaiseLevelLoaded(_currentLevel, _goalTracker.Counts);
-        GameEvents.RaiseMovesUpdated(_turnProcessor.RemainingMoves);
+        _eventBus.RaiseLevelLoaded(levelData, _goalTracker.Counts);
+        _eventBus.RaiseMovesUpdated(_turnProcessor.RemainingMoves);
+    }
+
+    private void PrepareBoardForLevel()
+    {
+        if (_references.LevelButton != null)
+        {
+            _references.LevelButton.SetActive(false);
+        }
+
+        if (_references.BoardParent != null)
+        {
+            _references.BoardParent.gameObject.SetActive(true);
+        }
     }
 
     private void OnItemClicked(int x, int y)
     {
-        if (_turnProcessor.IsProcessingTurn || _gameStateController.IsGameOver) return;
-        if (_turnProcessor.RemainingMoves <= 0) return;
-
-        PlaySound(_tapSfx);
-
-        var item = _gridSystem.GetItem(x, y);
-        if (item == null) return;
-
-        if (item is CubeItem)
-            StartCoroutine(_turnProcessor.ProcessCubeTurn(x, y));
-        else if (item is RocketItem rocket)
-            StartCoroutine(_turnProcessor.ProcessRocketTurn(x, y, rocket));
+        _boardInputRouter?.OnItemClicked(x, y);
     }
 
     private void OnTurnComplete()
     {
         if (_gameStateController.IsGameOver)
         {
-            _boardParent?.gameObject.SetActive(false);
-            _boardSetup?.HideBackground();
-            _levelButton?.SetActive(true);
+            _references.BoardParent?.gameObject.SetActive(false);
+            _references.BoardSetup?.HideBackground();
+            _references.LevelButton?.SetActive(true);
         }
     }
 
     private IEnumerator OnBoardStableBeforeInput()
     {
-        _gameStateController.CheckAndResolve(_turnProcessor.RemainingMoves, _currentLevel.level_number);
-        UpdateLastTurnResult();
-
-        if (_gameStateController.IsGameOver)
+        LevelData currentLevel = _levelSessionController.CurrentLevel;
+        if (currentLevel == null || _turnEndFlow == null)
         {
             yield break;
         }
 
-        if (!_enableNoMoveShuffle)
-        {
-            yield break;
-        }
-
-        if (_turnEndResolver == null)
-        {
-            yield break;
-        }
-
-        bool needsShuffle = _noMoveScanner != null && !_noMoveScanner.HasPlayableMove();
-        if (needsShuffle)
-        {
-            yield return PlayShuffleVisualTransition(true);
-        }
-
-        TurnEndResolution resolution = _turnEndResolver.ResolveAfterBoardStable(false);
-        if (resolution.ShuffleTriggered)
-        {
-            _sessionLog.MarkLastTurnShuffle(true, resolution.ShuffleSucceeded, resolution.ShuffleAttempts);
-            _rocketHintSystem?.UpdateHints();
-        }
-
-        if (needsShuffle)
-        {
-            yield return PlayShuffleVisualTransition(false);
-        }
+        yield return _turnEndFlow.RunAfterBoardStable(currentLevel.level_number);
     }
 
-    private TurnEndResolver CreateTurnEndResolver()
+    private void CreateTurnEndFlow()
     {
-        _noMoveScanner = new NoMoveScanner(_gridSystem, _minMatchSize);
-        _shuffleSystem = new ShuffleSystem(_gridSystem, _minMatchSize, _cellSize, GameRng.Shared, _shuffleMaxAttempts);
-        return new TurnEndResolver(_noMoveScanner, _shuffleSystem);
+        _noMoveScanner = new NoMoveScanner(_gridSystem, _rulesConfig.MinMatchSize);
+        _shuffleSystem = new ShuffleSystem(
+            _gridSystem,
+            _rulesConfig.MinMatchSize,
+            _references.CellSize,
+            GameRng.Shared,
+            _rulesConfig.ShuffleMaxAttempts);
+        _turnEndResolver = new TurnEndResolver(_noMoveScanner, _shuffleSystem);
+        _shuffleVisualController = new ShuffleVisualController(_gridSystem, _rulesConfig.ShuffleVisualDuration);
+        _turnEndFlow = new TurnEndFlow(
+            _gameStateController,
+            _turnProcessor,
+            _goalTracker,
+            _sessionLog,
+            _rocketHintSystem,
+            _turnEndResolver,
+            _noMoveScanner,
+            _shuffleVisualController,
+            _rulesConfig.EnableNoMoveShuffle);
     }
 
-    private void UpdateLastTurnResult()
+    public void DebugAddMoves(int amount)
     {
-        string state = "Playing";
-        if (_gameStateController.IsGameOver)
-        {
-            state = _goalTracker.IsComplete ? "Won" : "Lost";
-        }
+        _turnProcessor?.AddMoves(amount);
+    }
 
-        _sessionLog.UpdateLastTurnResult(state, _turnProcessor.RemainingMoves, _goalTracker.Counts);
+    public void DebugForceCompleteGoals()
+    {
+        if (_goalTracker == null || _gameStateController == null || _gameStateController.IsGameOver) return;
+        _goalTracker.DebugCompleteAll();
+        _eventBus?.RaiseGoalsUpdated(_goalTracker.Counts);
+        int levelNum = _levelSessionController?.CurrentLevel?.level_number ?? 0;
+        _gameStateController.CheckAndResolve(RemainingMoves, levelNum);
+        OnTurnComplete();
+    }
+
+    public void DebugLoadLevel(int levelNumber)
+    {
+        if (_progressService == null || IsProcessingTurn) return;
+        _progressService.SetSelectedLevel(Mathf.Max(1, levelNumber));
+        StartCoroutine(LoadCurrentLevelRoutine());
+    }
+
+    public void DebugLoadNextLevel() => DebugLoadLevel(DebugCurrentLevel + 1);
+
+    public void DebugLoadPrevLevel() => DebugLoadLevel(Mathf.Max(1, DebugCurrentLevel - 1));
+
+    [ContextMenu("Debug/Reload Level")]
+    public void DebugReloadLevel()
+    {
+        if (IsProcessingTurn) return;
+        StartCoroutine(LoadCurrentLevelRoutine());
+    }
+
+    public void DebugForceShuffle()
+    {
+        if (_shuffleSystem == null || IsProcessingTurn || DebugIsGameOver) return;
+        StartCoroutine(DebugForceShuffleRoutine());
+    }
+
+    private IEnumerator DebugForceShuffleRoutine()
+    {
+        if (_shuffleVisualController != null)
+            yield return _shuffleVisualController.PlayTransition(true);
+        _shuffleSystem.TryShuffleNormalCubesUntilPlayable(out _);
+        _rocketHintSystem?.UpdateHints();
+        if (_shuffleVisualController != null)
+            yield return _shuffleVisualController.PlayTransition(false);
+    }
+
+    public void DebugApplyCellSize(float newCellSize)
+    {
+        if (IsProcessingTurn) return;
+        _references.CellSize = Mathf.Max(0.2f, newCellSize);
+        InitializeSystems();
+        StartCoroutine(LoadCurrentLevelRoutine());
+    }
+
+    public void DebugSetItemScale(float scale)
+    {
+        if (_gridSystem == null) return;
+        scale = Mathf.Clamp(scale, 0.2f, 1.5f);
+        for (int x = 0; x < _gridSystem.Width; x++)
+            for (int y = 0; y < _gridSystem.Height; y++)
+            {
+                IBoardItem item = _gridSystem.GetItem(x, y);
+                GameObject go = item?.GetGameObject();
+                if (go != null) go.transform.localScale = Vector3.one * scale;
+            }
+    }
+
+    public void DebugReloadWithSize(int width, int height)
+    {
+        LevelData orig = _levelSessionController?.CurrentLevel;
+        if (orig == null || IsProcessingTurn) return;
+
+        int newW = Mathf.Clamp(width,  2, 20);
+        int newH = Mathf.Clamp(height, 2, 20);
+
+        var grid = new System.Collections.Generic.List<string>();
+        for (int y = 0; y < newH; y++)
+            for (int x = 0; x < newW; x++)
+            {
+                if (x < orig.grid_width && y < orig.grid_height)
+                    grid.Add(orig.grid[y * orig.grid_width + x]);
+                else
+                    grid.Add(ItemIds.Random);
+            }
+
+        LoadLevel(new LevelData
+        {
+            level_number = orig.level_number,
+            grid_width   = newW,
+            grid_height  = newH,
+            move_count   = orig.move_count,
+            grid         = grid
+        });
     }
 
     public string ExportSessionLog()
@@ -282,54 +378,10 @@ public class GameManager : MonoBehaviour
         return _gridSystem != null ? BoardSnapshot.FromGrid(_gridSystem) : null;
     }
 
-    private IEnumerator PlayShuffleVisualTransition(bool beforeShuffle)
-    {
-        if (_shuffleVisualDuration <= 0f || _gridSystem == null)
-        {
-            yield break;
-        }
-
-        float endScale = beforeShuffle ? 0.88f : 1f;
-        Sequence sequence = DOTween.Sequence();
-        bool hasTween = false;
-
-        for (int x = 0; x < _gridSystem.Width; x++)
-        {
-            for (int y = 0; y < _gridSystem.Height; y++)
-            {
-                IBoardItem item = _gridSystem.GetItem(x, y);
-                if (item == null || item.GetItemType() != ItemType.Cube)
-                {
-                    continue;
-                }
-
-                GameObject go = item.GetGameObject();
-                if (go != null)
-                {
-                    go.transform.DOKill();
-                    sequence.Join(
-                        go.transform
-                            .DOScale(Vector3.one * endScale, _shuffleVisualDuration)
-                            .SetEase(Ease.InOutSine)
-                    );
-                    hasTween = true;
-                }
-            }
-        }
-
-        if (!hasTween)
-        {
-            sequence.Kill();
-            yield break;
-        }
-
-        yield return sequence.WaitForCompletion();
-    }
-
     private void PlaySound(AudioClip clip)
     {
-        if (AudioManager.Instance != null && clip != null)
-            AudioManager.Instance.PlaySFX(clip);
+        EnsureServices();
+        _audioService.PlaySfx(clip);
     }
 
     private IEnumerator UpdateHintsNextFrame()
@@ -337,4 +389,44 @@ public class GameManager : MonoBehaviour
         yield return null;
         _rocketHintSystem?.UpdateHints();
     }
+
+    private void SyncGroupedConfigFromLegacy()
+    {
+        if (_references == null) _references = new BoardSceneReferences();
+        if (_levelConfig == null) _levelConfig = new LevelLoadConfig();
+        if (_rulesConfig == null) _rulesConfig = new GameplayRulesConfig();
+        if (_rulesConfig.BoardAnimation == null) _rulesConfig.BoardAnimation = BoardAnimationConfig.Default;
+        if (_sessionConfig == null) _sessionConfig = new SessionConfig();
+        if (_audioConfig == null) _audioConfig = new GameAudioConfig();
+
+        if (_groupedConfigInitialized)
+        {
+            return;
+        }
+
+        _references.ApplyLegacy(_itemFactory, _boardParent, _cellSize, _boardSetup, _levelButton);
+        _levelConfig.ApplyLegacy(_levelJson, _enableLevelLoaderDebugLogs);
+        _rulesConfig.ApplyLegacy(
+            _minMatchSize,
+            _rocketMatchSize,
+            _enableNoMoveShuffle,
+            _shuffleMaxAttempts,
+            _shuffleVisualDuration);
+        _sessionConfig.ApplyLegacy(
+            _useSessionSeedOverride,
+            _sessionSeedOverride,
+            _enableSessionLog,
+            _writeSessionLogToConsole,
+            _enableTurnSnapshots);
+        _audioConfig.ApplyLegacy(_backgroundMusic, _matchSfx, _tapSfx, _rocketSfx, _winSfx, _loseSfx);
+        _groupedConfigInitialized = true;
+    }
+
+    private void EnsureServices()
+    {
+        if (_audioService == null) _audioService = new UnityAudioService();
+        if (_progressService == null) _progressService = new PlayerPrefsProgressService();
+        if (_eventBus == null) _eventBus = new StaticGameplayEventBus();
+    }
+}
 }

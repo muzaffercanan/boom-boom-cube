@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Data
+{
 [CreateAssetMenu(fileName = "NewLevelConfig", menuName = "DreamGames/LevelConfig")]
 public class LevelConfig : ScriptableObject
 {
@@ -18,4 +27,5 @@ public class LevelConfig : ScriptableObject
     [Header("Visual Settings")]
     [Range(0.1f, 3f)]
     public float cellSize = 1.0f;
+}
 }

@@ -1,7 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.UI
+{
 public class GoalItemView : MonoBehaviour
 {
     [SerializeField] private Image _iconImage;
@@ -23,4 +32,5 @@ public class GoalItemView : MonoBehaviour
         _countNumber.text = Mathf.Max(0, count).ToString();
     }
 
+}
 }

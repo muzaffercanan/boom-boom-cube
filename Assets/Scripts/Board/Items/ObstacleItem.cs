@@ -1,5 +1,14 @@
 using UnityEngine;
+using DreamGames.Board.Items;
+using DreamGames.Board.Systems;
+using DreamGames.Board.Visuals;
+using DreamGames.Core;
+using DreamGames.Data;
+using DreamGames.Gameplay;
+using DreamGames.UI;
 
+namespace DreamGames.Board.Items
+{
 public abstract class ObstacleItem : AbstractBoardItem, IDamageable
 {
     [SerializeField] protected int _health;
@@ -20,4 +29,5 @@ public abstract class ObstacleItem : AbstractBoardItem, IDamageable
     }
 
     protected abstract void UpdateVisuals();
+}
 }
