@@ -47,7 +47,7 @@ public class LevelLoader
         LogBoardParent();
 
         ClearBoardParent();
-        gridSystem.Initialize(data.grid_width, data.grid_height);
+        gridSystem.Initialize(data.grid_width, data.grid_height, BoardCellLayout.FromLevelData(data));
 
         int index = 0;
         for (int y = 0; y < data.grid_height; y++)
@@ -56,7 +56,18 @@ public class LevelLoader
             {
                 if (index >= data.grid.Count) break;
 
-                string id = data.grid[index];
+                if (!gridSystem.CanHoldItem(x, y))
+                {
+                    index++;
+                    continue;
+                }
+
+                string id = data.GetItemIdAt(index);
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    index++;
+                    continue;
+                }
 
                 var item = _factory.CreateItem(id, _boardParent, _geometry.CellSize);
                 if (item != null)

@@ -204,6 +204,25 @@ public class BoardSystemsEditModeTests
     }
 
     [Test]
+    public void MatchSystem_FindMatches_DoesNotConnectAcrossHoleCell()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(3, 1, CreateCells(3, 1, new Vector2Int(1, 0)));
+        TestMatchableItem left = new TestMatchableItem(CubeColor.Red);
+        TestMatchableItem right = new TestMatchableItem(CubeColor.Red);
+        grid.SetItem(0, 0, left);
+        grid.SetItem(2, 0, right);
+
+        MatchSystem matchSystem = new MatchSystem(grid);
+
+        List<IBoardItem> matches = matchSystem.FindMatches(0, 0);
+
+        Assert.AreEqual(1, matches.Count);
+        Assert.Contains(left, matches);
+        Assert.IsFalse(matches.Contains(right));
+    }
+
+    [Test]
     public void MatchSystem_GetAdjacentObstacles_DeduplicatesSharedObstacles()
     {
         GridSystem grid = new GridSystem();
@@ -241,6 +260,66 @@ public class BoardSystemsEditModeTests
 
         Assert.IsNotNull(error);
         Assert.IsTrue(error.Contains("Expected: 4"));
+    }
+
+    [Test]
+    public void LevelRepository_ParseAndValidate_AcceptsLegacyGridFormat()
+    {
+        string json = "{\"level_number\":1,\"grid_width\":2,\"grid_height\":1,\"move_count\":5,\"grid\":[\"r\",\"b\"]}";
+
+        LevelLoadResult result = LevelRepository.ParseAndValidate(json, "inline");
+
+        Assert.IsTrue(result.Success, result.Error);
+        Assert.IsFalse(result.LevelData.HasCellLayout);
+        Assert.AreEqual(ItemIds.Red, result.LevelData.GetItemIdAt(0));
+    }
+
+    [Test]
+    public void LevelRepository_ParseAndValidate_AcceptsCellsFormatWithoutLegacyGrid()
+    {
+        string json = "{\"level_number\":1,\"grid_width\":3,\"grid_height\":1,\"move_count\":5,\"cells\":[{\"item\":\"r\"},{\"cell_type\":\"hole\"},{\"item\":\"b\"}]}";
+
+        LevelLoadResult result = LevelRepository.ParseAndValidate(json, "inline");
+
+        Assert.IsTrue(result.Success, result.Error);
+        Assert.IsTrue(result.LevelData.HasCellLayout);
+        BoardCellState[,] cells = BoardCellLayout.FromLevelData(result.LevelData);
+        Assert.IsTrue(cells[0, 0].CanHoldItem);
+        Assert.IsFalse(cells[1, 0].CanHoldItem);
+        Assert.AreEqual(ItemIds.Blue, result.LevelData.GetItemIdAt(2));
+    }
+
+    [Test]
+    public void LevelRepository_Validate_RejectsHoleCellWithItem()
+    {
+        LevelData data = new LevelData
+        {
+            level_number = 1,
+            grid_width = 1,
+            grid_height = 1,
+            move_count = 5,
+            cells = new List<LevelCellData>
+            {
+                new LevelCellData { cell_type = "hole", item = ItemIds.Red }
+            }
+        };
+
+        string error = LevelRepository.Validate(data);
+
+        Assert.IsNotNull(error);
+        StringAssert.Contains("cannot hold items", error);
+    }
+
+    [Test]
+    public void GridSystem_CellState_MakesHoleInvalidButKeepsBoundsSeparate()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(2, 1, CreateCells(2, 1, new Vector2Int(1, 0)));
+
+        Assert.IsTrue(grid.IsInBounds(1, 0));
+        Assert.IsFalse(grid.IsValid(1, 0));
+        Assert.IsFalse(grid.CanHoldItem(1, 0));
+        Assert.IsTrue(grid.BlocksRocket(1, 0));
     }
 
     [Test]
@@ -339,6 +418,25 @@ public class BoardSystemsEditModeTests
         Assert.IsNull(grid.GetItem(0, 2));
         Assert.IsNull(grid.GetItem(0, 3));
         Assert.AreEqual(0, item.Y);
+    }
+
+    [Test]
+    public void GravitySystem_HoleCellBlocksColumnTraversal()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 4, CreateCells(1, 4, new Vector2Int(0, 1)));
+        TestMatchableItem item = new TestMatchableItem(CubeColor.Blue);
+        grid.SetItem(0, 3, item);
+
+        GravitySystem gravitySystem = new GravitySystem(grid, 1f);
+
+        Assert.IsTrue(gravitySystem.ApplyGravity());
+
+        Assert.IsNull(grid.GetItem(0, 0));
+        Assert.IsNull(grid.GetItem(0, 1));
+        Assert.AreSame(item, grid.GetItem(0, 2));
+        Assert.IsNull(grid.GetItem(0, 3));
+        Assert.AreEqual(2, item.Y);
     }
 
     [Test]
@@ -465,6 +563,51 @@ public class BoardSystemsEditModeTests
     }
 
     [Test]
+    public void BoardFiller_DoesNotFillHoleCells()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 3, CreateCells(1, 3, new Vector2Int(0, 1)));
+
+        GameObject parentObject = new GameObject("BoardFillerHoleParent");
+        ItemFactory factory = ScriptableObject.CreateInstance<ItemFactory>();
+        GameObject redPrefab = CreateRuntimeCubePrefab("RedCubePrefab");
+
+        try
+        {
+            factory.mappings = new List<ItemFactory.ItemPrefabMap>
+            {
+                CreateMapping(ItemId.Red, ItemIds.Red, redPrefab),
+                CreateMapping(ItemId.Green, ItemIds.Green, redPrefab),
+                CreateMapping(ItemId.Blue, ItemIds.Blue, redPrefab),
+                CreateMapping(ItemId.Yellow, ItemIds.Yellow, redPrefab)
+            };
+            SetPrivateField(factory, "_cacheDirty", true);
+
+            BoardAnimationConfig animationConfig = new BoardAnimationConfig
+            {
+                SpawnRowsAboveBoard = 1f,
+                FallMoveDuration = 0.1f,
+                GravityStepDelay = 0f,
+                LandingBounceDuration = 0f,
+                SpawnStartScale = 1f
+            };
+            BoardFiller filler = new BoardFiller(grid, factory, parentObject.transform, 1f, animationConfig);
+
+            filler.FillEmptySpaces();
+
+            Assert.IsNotNull(grid.GetItem(0, 0));
+            Assert.IsNull(grid.GetItem(0, 1));
+            Assert.IsNotNull(grid.GetItem(0, 2));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(factory);
+            UnityEngine.Object.DestroyImmediate(redPrefab);
+            UnityEngine.Object.DestroyImmediate(parentObject);
+        }
+    }
+
+    [Test]
     public void GameRng_ReturnsSameSequence_ForSameSeed()
     {
         GameRng first = new GameRng(12345);
@@ -561,6 +704,25 @@ public class BoardSystemsEditModeTests
         Assert.IsFalse(shuffled);
         Assert.AreEqual(2, attempts);
         Assert.AreEqual(2, CountItems(grid));
+    }
+
+    [Test]
+    public void BoardInputRouter_DoesNotResolveHoleCellAsValidInput()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(2, 1, CreateCells(2, 1, new Vector2Int(1, 0)));
+        grid.SetItem(0, 0, new TestMatchableItem(CubeColor.Red));
+
+        BoardInputRouter router = new BoardInputRouter(
+            grid,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new BoardGeometry(null, 1f));
+
+        Assert.IsFalse(router.TryResolveLocalPosition(new Vector2(1f, 0f), out _));
     }
 
     [Test]
@@ -1000,6 +1162,24 @@ public class BoardSystemsEditModeTests
                 grid.SetItem(x, y, new TestMatchableItem(color));
             }
         }
+    }
+
+    private static BoardCellState[,] CreateCells(int width, int height, params Vector2Int[] holes)
+    {
+        BoardCellState[,] cells = new BoardCellState[width, height];
+        HashSet<Vector2Int> holeSet = new HashSet<Vector2Int>(holes);
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                cells[x, y] = holeSet.Contains(new Vector2Int(x, y))
+                    ? BoardCellState.Hole
+                    : BoardCellState.Normal;
+            }
+        }
+
+        return cells;
     }
 
     private static int CountItems(GridSystem grid)

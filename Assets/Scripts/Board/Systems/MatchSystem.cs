@@ -20,6 +20,11 @@ public class MatchSystem
 
     public List<IBoardItem> FindMatches(int startX, int startY)
     {
+        if (!_gridSystem.IsPlayableCell(startX, startY))
+        {
+            return new List<IBoardItem>();
+        }
+
         var startItem = _gridSystem.GetItem(startX, startY);
         if (startItem == null || !(startItem is IMatchable matchable)) 
             return new List<IBoardItem>();
@@ -51,6 +56,8 @@ public class MatchSystem
 
     private void CheckAdjacentForObstacle(int x, int y, HashSet<IBoardItem> visited, List<IBoardItem> result)
     {
+        if (!_gridSystem.IsPlayableCell(x, y)) return;
+
         var item = _gridSystem.GetItem(x, y);
         if (item != null && item is IDamageable && !visited.Contains(item))
         {
@@ -67,7 +74,7 @@ public class MatchSystem
         while (pending.Count > 0)
         {
             GridPosition position = pending.Dequeue();
-            if (!_gridSystem.IsValid(position.X, position.Y)) continue;
+            if (!_gridSystem.IsPlayableCell(position.X, position.Y)) continue;
             if (visited[position.X, position.Y]) continue;
 
             visited[position.X, position.Y] = true;

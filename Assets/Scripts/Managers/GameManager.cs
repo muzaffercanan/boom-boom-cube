@@ -201,7 +201,7 @@ public class GameManager : MonoBehaviour
         PrepareBoardForLevel();
         CreateTurnEndFlow();
 
-        _goalTracker.Initialize(levelData.grid);
+        _goalTracker.Initialize(levelData.EnumerateItemIds());
         _gameStateController.Reset();
         _turnProcessor.ResetTurnState();
         _turnProcessor.SetRemainingMoves(levelData.move_count);

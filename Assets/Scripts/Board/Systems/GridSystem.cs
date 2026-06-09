@@ -14,6 +14,7 @@ public class GridSystem
     private int _width;
     private int _height;
     private IBoardItem[,] _grid;
+    private BoardCellState[,] _cells;
 
     public int Width => _width;
     public int Height => _height;
@@ -23,17 +24,43 @@ public class GridSystem
         _width = width;
         _height = height;
         _grid = new IBoardItem[width, height];
+        _cells = new BoardCellState[width, height];
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                _cells[x, y] = BoardCellState.Normal;
+            }
+        }
+    }
+
+    public void Initialize(int width, int height, BoardCellState[,] cells)
+    {
+        Initialize(width, height);
+        if (cells == null) return;
+
+        int copyWidth = Mathf.Min(width, cells.GetLength(0));
+        int copyHeight = Mathf.Min(height, cells.GetLength(1));
+        for (int x = 0; x < copyWidth; x++)
+        {
+            for (int y = 0; y < copyHeight; y++)
+            {
+                _cells[x, y] = cells[x, y];
+            }
+        }
     }
 
     public IBoardItem GetItem(int x, int y)
     {
-        if (!IsValid(x, y)) return null;
+        if (!CanHoldItem(x, y)) return null;
         return _grid[x, y];
     }
 
     public void SetItem(int x, int y, IBoardItem item)
     {
-        if (!IsValid(x, y)) return;
+        if (!IsInBounds(x, y)) return;
+        if (item != null && !CanHoldItem(x, y)) return;
         _grid[x, y] = item;
         if (item != null)
         {
@@ -43,17 +70,65 @@ public class GridSystem
 
     public bool IsValid(int x, int y)
     {
+        return IsInBounds(x, y) && IsPlayableCell(x, y);
+    }
+
+    public bool IsInBounds(int x, int y)
+    {
         return x >= 0 && x < _width && y >= 0 && y < _height;
+    }
+
+    public BoardCellState GetCellState(int x, int y)
+    {
+        if (!IsInBounds(x, y) || _cells == null)
+        {
+            return BoardCellState.Hole;
+        }
+
+        return _cells[x, y];
+    }
+
+    public bool CellExists(int x, int y)
+    {
+        return IsInBounds(x, y) && GetCellState(x, y).Exists;
+    }
+
+    public bool IsPlayableCell(int x, int y)
+    {
+        BoardCellState state = GetCellState(x, y);
+        return state.Exists && state.Playable;
+    }
+
+    public bool CanHoldItem(int x, int y)
+    {
+        BoardCellState state = GetCellState(x, y);
+        return state.Exists && state.CanHoldItem;
+    }
+
+    public bool CanSpawnItem(int x, int y)
+    {
+        BoardCellState state = GetCellState(x, y);
+        return state.Exists && state.CanHoldItem && state.CanSpawnItem;
+    }
+
+    public bool BlocksFall(int x, int y)
+    {
+        return !IsInBounds(x, y) || GetCellState(x, y).BlocksFall;
+    }
+
+    public bool BlocksRocket(int x, int y)
+    {
+        return !IsInBounds(x, y) || GetCellState(x, y).BlocksRocket;
     }
 
     public void ClearCell(int x, int y)
     {
-        if (IsValid(x, y)) _grid[x, y] = null;
+        if (IsInBounds(x, y)) _grid[x, y] = null;
     }
 
     public void DestroyItem(int x, int y)
     {
-        if (!IsValid(x, y)) return;
+        if (!IsInBounds(x, y)) return;
         var item = _grid[x, y];
         if (item != null)
         {

@@ -57,7 +57,8 @@ public sealed class BoardInputRouter
             return false;
         }
 
-        return _geometry.TryScreenPositionToCell(camera, screenPosition, _gridSystem.Width, _gridSystem.Height, out cell);
+        return _geometry.TryScreenPositionToCell(camera, screenPosition, _gridSystem.Width, _gridSystem.Height, out cell)
+            && _gridSystem.IsValid(cell.x, cell.y);
     }
 
     public bool TryResolveWorldPosition(Vector3 worldPosition, out Vector2Int cell)
@@ -68,7 +69,8 @@ public sealed class BoardInputRouter
             return false;
         }
 
-        return _geometry.TryWorldPositionToCell(worldPosition, _gridSystem.Width, _gridSystem.Height, out cell);
+        return _geometry.TryWorldPositionToCell(worldPosition, _gridSystem.Width, _gridSystem.Height, out cell)
+            && _gridSystem.IsValid(cell.x, cell.y);
     }
 
     public bool TryResolveLocalPosition(Vector2 localPosition, out Vector2Int cell)
@@ -79,7 +81,8 @@ public sealed class BoardInputRouter
             return false;
         }
 
-        return _geometry.TryLocalPositionToCell(localPosition, _gridSystem.Width, _gridSystem.Height, out cell);
+        return _geometry.TryLocalPositionToCell(localPosition, _gridSystem.Width, _gridSystem.Height, out cell)
+            && _gridSystem.IsValid(cell.x, cell.y);
     }
 
     public void OnItemClicked(int x, int y)

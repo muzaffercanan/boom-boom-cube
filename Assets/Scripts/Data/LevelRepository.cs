@@ -157,22 +157,61 @@ public static class LevelRepository
             return $"move_count cannot be negative. Actual: {data.move_count}";
         }
 
-        if (data.grid == null)
+        bool hasCells = data.cells != null && data.cells.Count > 0;
+        bool hasGrid = data.grid != null && data.grid.Count > 0;
+        if (!hasCells && !hasGrid)
         {
-            return "grid is null.";
+            return "level must define either legacy grid or cells.";
         }
 
         int expectedCellCount = data.grid_width * data.grid_height;
-        if (data.grid.Count != expectedCellCount)
+        if (hasGrid && data.grid.Count != expectedCellCount)
         {
             return $"grid cell count must equal grid_width * grid_height. Expected: {expectedCellCount}, actual: {data.grid.Count}";
         }
 
-        for (int i = 0; i < data.grid.Count; i++)
+        if (hasCells && data.cells.Count != expectedCellCount)
         {
-            if (string.IsNullOrWhiteSpace(data.grid[i]))
+            return $"cells count must equal grid_width * grid_height. Expected: {expectedCellCount}, actual: {data.cells.Count}";
+        }
+
+        if (hasGrid)
+        {
+            for (int i = 0; i < data.grid.Count; i++)
             {
-                return $"grid contains an empty item id at index {i}.";
+                if (string.IsNullOrWhiteSpace(data.grid[i]))
+                {
+                    return $"grid contains an empty item id at index {i}.";
+                }
+            }
+        }
+
+        if (hasCells)
+        {
+            for (int i = 0; i < data.cells.Count; i++)
+            {
+                LevelCellData cell = data.cells[i];
+                if (cell == null)
+                {
+                    return $"cells contains null cell data at index {i}.";
+                }
+
+                if (!BoardCellState.IsKnownCellType(cell.cell_type))
+                {
+                    return $"cells contains unknown cell_type '{cell.cell_type}' at index {i}.";
+                }
+
+                if (cell.item != null && string.IsNullOrWhiteSpace(cell.item))
+                {
+                    return $"cells contains an empty item id at index {i}. Omit item for empty playable cells.";
+                }
+
+                BoardCellState state = BoardCellState.FromLevelCell(cell);
+                string resolvedItem = data.GetItemIdAt(i);
+                if (!string.IsNullOrWhiteSpace(resolvedItem) && !state.CanHoldItem)
+                {
+                    return $"cell at index {i} has item '{resolvedItem}' but cell_type '{cell.cell_type}' cannot hold items.";
+                }
             }
         }
 

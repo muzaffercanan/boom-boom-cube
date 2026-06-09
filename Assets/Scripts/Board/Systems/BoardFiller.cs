@@ -61,7 +61,7 @@ public class BoardFiller
         {
             for (int y = 0; y < _gridSystem.Height; y++)
             {
-                if (_gridSystem.GetItem(x, y) == null)
+                if (_gridSystem.CanSpawnItem(x, y) && _gridSystem.GetItem(x, y) == null)
                 {
                     float duration = SpawnItemAt(x, y, spawnCountsByColumn[x]);
                     LastFillAnimationDuration = Mathf.Max(LastFillAnimationDuration, duration);
@@ -80,6 +80,11 @@ public class BoardFiller
 
     private float SpawnItemAt(int x, int y, int columnSpawnIndex)
     {
+        if (!_gridSystem.CanSpawnItem(x, y))
+        {
+            return 0f;
+        }
+
         var item = _itemFactory.CreateItem(ItemIds.Random, _boardParent, _geometry.CellSize);
         if (item == null) return 0f;
 
@@ -135,6 +140,11 @@ public class BoardFiller
 
     public void CreateRocket(int x, int y)
     {
+        if (!_gridSystem.CanHoldItem(x, y))
+        {
+            return;
+        }
+
         bool isHorizontal = GameRng.Shared.Value() < 0.5f;
         string rocketId = isHorizontal ? ItemIds.HorizontalRocket : ItemIds.VerticalRocket;
 

@@ -41,7 +41,7 @@ public sealed class NoMoveScanner
             for (int y = 0; y < _gridSystem.Height; y++)
             {
                 IBoardItem item = _gridSystem.GetItem(x, y);
-                if (item == null)
+                if (!_gridSystem.IsPlayableCell(x, y) || item == null)
                 {
                     visited[x, y] = true;
                     continue;
@@ -79,7 +79,7 @@ public sealed class NoMoveScanner
         while (pending.Count > 0)
         {
             GridPosition position = pending.Dequeue();
-            if (!_gridSystem.IsValid(position.X, position.Y)) continue;
+            if (!_gridSystem.IsPlayableCell(position.X, position.Y)) continue;
             if (visited[position.X, position.Y]) continue;
 
             IBoardItem item = _gridSystem.GetItem(position.X, position.Y);

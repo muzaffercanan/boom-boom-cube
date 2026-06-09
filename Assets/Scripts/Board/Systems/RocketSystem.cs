@@ -124,7 +124,7 @@ public class RocketSystem
         {
             int rowY = centerY + offset;
 
-            if (rowY >= 0 && rowY < _gridSystem.Height)
+            if (rowY >= 0 && rowY < _gridSystem.Height && !_gridSystem.BlocksRocket(centerX, rowY))
             {
 
                 SpawnRocketBeams(centerX, rowY, isHorizontal: true, isCombo: true);
@@ -136,7 +136,7 @@ public class RocketSystem
         {
             int colX = centerX + offset;
 
-            if (colX >= 0 && colX < _gridSystem.Width)
+            if (colX >= 0 && colX < _gridSystem.Width && !_gridSystem.BlocksRocket(colX, centerY))
             {
 
                 SpawnRocketBeams(colX, centerY, isHorizontal: false, isCombo: true);

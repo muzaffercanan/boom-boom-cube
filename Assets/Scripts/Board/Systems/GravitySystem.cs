@@ -60,6 +60,13 @@ public class GravitySystem
 
         for (int y = 0; y < _grid.Height; y++)
         {
+            if (!_grid.CanHoldItem(x, y))
+            {
+                writeY = y + 1;
+                staggerIndex = 0;
+                continue;
+            }
+
             var item = _grid.GetItem(x, y);
             if (item == null) continue;
 
@@ -124,6 +131,12 @@ public class GravitySystem
 
         for (int y = 0; y < _grid.Height; y++)
         {
+            if (!_grid.CanHoldItem(x, y))
+            {
+                writeY = y + 1;
+                continue;
+            }
+
             var item = _grid.GetItem(x, y);
             if (item == null) continue;
 
