@@ -31,6 +31,48 @@ public class BoardSystemsEditModeTests
     }
 
     [Test]
+    public void GridSystem_DestroyItem_ClearsLogicalStateWithoutDestroyingView()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 1);
+        GameObject gameObject = new GameObject("LogicalDestroyCube");
+
+        try
+        {
+            CubeItem cube = gameObject.AddComponent<CubeItem>();
+            grid.SetItem(0, 0, cube);
+
+            grid.DestroyItem(0, 0);
+
+            Assert.IsNull(grid.GetItem(0, 0));
+            Assert.IsNotNull(gameObject);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(gameObject);
+        }
+    }
+
+    [Test]
+    public void DamageResolver_DestroyItemWithEffect_ClearsGridAndUsesViewLifecycle()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(1, 1);
+        TestMatchableItem item = new TestMatchableItem(CubeColor.Red);
+        grid.SetItem(0, 0, item);
+
+        GoalTracker goals = new GoalTracker();
+        TestViewLifecycle lifecycle = new TestViewLifecycle();
+        DamageResolver resolver = new DamageResolver(grid, goals, _ => { }, lifecycle);
+
+        resolver.DestroyItemWithEffect(0, 0, DamageType.MatchBlast);
+
+        Assert.IsNull(grid.GetItem(0, 0));
+        Assert.AreEqual(1, lifecycle.DestroyedItems.Count);
+        Assert.AreSame(item, lifecycle.DestroyedItems[0]);
+    }
+
+    [Test]
     public void BoardGeometry_MapsCellsAndLocalPositionsUsingSquareCellBounds()
     {
         BoardGeometry geometry = new BoardGeometry(null, 1f);
@@ -1150,6 +1192,22 @@ public class BoardSystemsEditModeTests
         }
 
         public bool TakeDamage(DamageType type) => true;
+    }
+
+    private sealed class TestViewLifecycle : IBoardItemViewLifecycle
+    {
+        public readonly List<IBoardItem> DestroyedItems = new List<IBoardItem>();
+        public readonly List<GameObject> DestroyedGameObjects = new List<GameObject>();
+
+        public void DestroyView(IBoardItem item)
+        {
+            DestroyedItems.Add(item);
+        }
+
+        public void DestroyGameObject(GameObject gameObject)
+        {
+            DestroyedGameObjects.Add(gameObject);
+        }
     }
 
     private static void FillCheckerboard(GridSystem grid)

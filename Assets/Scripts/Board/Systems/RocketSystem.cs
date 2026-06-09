@@ -20,6 +20,7 @@ public class RocketSystem
     private readonly BoardGeometry _geometry;
     private readonly MonoBehaviour _coroutineRunner;
     private readonly AudioClip _rocketSfx;
+    private readonly IBoardItemViewLifecycle _viewLifecycle;
     private readonly Dictionary<string, ObjectPool<GameObject>> _projectilePools = new Dictionary<string, ObjectPool<GameObject>>();
     private readonly HashSet<RocketProjectile> _activeProjectiles = new HashSet<RocketProjectile>();
 
@@ -33,7 +34,7 @@ public class RocketSystem
     {
     }
 
-    public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, BoardGeometry geometry, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null)
+    public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, BoardGeometry geometry, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null, IBoardItemViewLifecycle viewLifecycle = null)
     {
         _gridSystem = grid;
         _itemFactory = factory;
@@ -42,6 +43,7 @@ public class RocketSystem
         _coroutineRunner = runner;
         _onDamageRequest = onDamageRequest;
         _rocketSfx = rocketSfx;
+        _viewLifecycle = viewLifecycle ?? new UnityBoardItemViewLifecycle();
     }
 
     public bool TryProcessRocketClick(int x, int y, RocketItem clickedRocket, out bool isCombo)
@@ -81,29 +83,24 @@ public class RocketSystem
 
         if (rocket == null) return;
 
-        _gridSystem.SetItem(x, y, null);
-        
-        GameObject go = rocket.GetGameObject();
-        if (go != null)
-        {
-             Object.Destroy(go);
-        }
+        bool isHorizontal = rocket.IsHorizontal;
+        _gridSystem.DestroyItem(x, y);
+        _viewLifecycle.DestroyView(rocket);
 
-        SpawnRocketBeams(x, y, rocket.IsHorizontal, false);
+        SpawnRocketBeams(x, y, isHorizontal, false);
     }
 
     private void ProcessRocketCombo(RocketItem r1, RocketItem r2)
     {
 
-        _gridSystem.SetItem(r1.X, r1.Y, null);
-        _gridSystem.SetItem(r2.X, r2.Y, null);
-        
-        Object.Destroy(r1.GetGameObject());
-        Object.Destroy(r2.GetGameObject());
-
-
         int centerX = r1.X;
         int centerY = r1.Y;
+
+        _gridSystem.DestroyItem(r1.X, r1.Y);
+        _gridSystem.DestroyItem(r2.X, r2.Y);
+
+        _viewLifecycle.DestroyView(r1);
+        _viewLifecycle.DestroyView(r2);
 
         for (int dx = -1; dx <= 1; dx++)
         {

@@ -16,17 +16,20 @@ public sealed class DamageResolver
     private readonly GridSystem _gridSystem;
     private readonly GoalTracker _goalTracker;
     private readonly Action<Dictionary<string, int>> _onGoalsChanged;
+    private readonly IBoardItemViewLifecycle _viewLifecycle;
 
     private RocketSystem _rocketSystem;
 
     public DamageResolver(
         GridSystem gridSystem,
         GoalTracker goalTracker,
-        Action<Dictionary<string, int>> onGoalsChanged)
+        Action<Dictionary<string, int>> onGoalsChanged,
+        IBoardItemViewLifecycle viewLifecycle = null)
     {
         _gridSystem = gridSystem;
         _goalTracker = goalTracker;
         _onGoalsChanged = onGoalsChanged;
+        _viewLifecycle = viewLifecycle ?? new UnityBoardItemViewLifecycle();
     }
 
     public void SetRocketSystem(RocketSystem rocketSystem)
@@ -85,6 +88,7 @@ public sealed class DamageResolver
         bool goalChanged = _goalTracker.TryRecordDestroyed(item);
         item.PlayDestroyEffect(type);
         _gridSystem.DestroyItem(x, y);
+        _viewLifecycle.DestroyView(item);
 
         if (goalChanged)
         {

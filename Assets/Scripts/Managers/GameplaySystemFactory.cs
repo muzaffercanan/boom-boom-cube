@@ -20,6 +20,7 @@ public sealed class GameplaySystemFactory
         MatchSystem matchSystem = new MatchSystem(gridSystem);
         BoardAnimationConfig animationConfig = config.BoardAnimation ?? BoardAnimationConfig.Default;
         BoardGeometry geometry = new BoardGeometry(config.BoardParent, config.CellSize);
+        IBoardItemViewLifecycle viewLifecycle = new UnityBoardItemViewLifecycle();
         if (config.ItemFactory != null && config.VisualConfig != null)
         {
             config.ItemFactory.SetVisualConfig(config.VisualConfig);
@@ -48,7 +49,11 @@ public sealed class GameplaySystemFactory
             IsSnapshotLoggingEnabled = config.EnableTurnSnapshots
         };
         MoveCounter moveCounter = new MoveCounter(config.EventBus.RaiseMovesUpdated);
-        DamageResolver damageResolver = new DamageResolver(gridSystem, goalTracker, config.EventBus.RaiseGoalsUpdated);
+        DamageResolver damageResolver = new DamageResolver(
+            gridSystem,
+            goalTracker,
+            config.EventBus.RaiseGoalsUpdated,
+            viewLifecycle);
         TurnLogger turnLogger = new TurnLogger(sessionLog, gridSystem, goalTracker, moveCounter);
 
         GameStateController gameStateController = new GameStateController(
@@ -99,7 +104,8 @@ public sealed class GameplaySystemFactory
             geometry,
             config.CoroutineRunner,
             turnProcessor.HandleDamage,
-            config.RocketSfx
+            config.RocketSfx,
+            viewLifecycle
         );
         turnProcessor.SetRocketSystem(rocketSystem);
         BoardInputRouter boardInputRouter = new BoardInputRouter(

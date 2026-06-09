@@ -126,15 +126,17 @@ public class GridSystem
         if (IsInBounds(x, y)) _grid[x, y] = null;
     }
 
+    public IBoardItem RemoveItem(int x, int y)
+    {
+        if (!IsInBounds(x, y)) return null;
+        var item = _grid[x, y];
+        _grid[x, y] = null;
+        return item;
+    }
+
     public void DestroyItem(int x, int y)
     {
-        if (!IsInBounds(x, y)) return;
-        var item = _grid[x, y];
-        if (item != null)
-        {
-            Object.Destroy(item.GetGameObject());
-            _grid[x, y] = null;
-        }
+        RemoveItem(x, y);
     }
 }
 }
