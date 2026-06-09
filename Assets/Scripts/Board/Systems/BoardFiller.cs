@@ -70,7 +70,7 @@ public class BoardFiller
 
     private float SpawnItemAt(int x, int y, int columnSpawnIndex)
     {
-        var item = _itemFactory.CreateItem(ItemIds.Random, _boardParent);
+        var item = _itemFactory.CreateItem(ItemIds.Random, _boardParent, _cellSize);
         if (item == null) return 0f;
 
         item.Init(_onItemClicked);
@@ -128,7 +128,7 @@ public class BoardFiller
         bool isHorizontal = GameRng.Shared.Value() < 0.5f;
         string rocketId = isHorizontal ? ItemIds.HorizontalRocket : ItemIds.VerticalRocket;
 
-        var rocket = _itemFactory.CreateItem(rocketId, _boardParent);
+        var rocket = _itemFactory.CreateItem(rocketId, _boardParent, _cellSize);
         if (rocket == null) return;
 
         rocket.Init(_onItemClicked);

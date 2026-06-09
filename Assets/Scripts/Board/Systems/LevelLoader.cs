@@ -58,7 +58,7 @@ public class LevelLoader
 
                 string id = data.grid[index];
 
-                var item = _factory.CreateItem(id, _boardParent);
+                var item = _factory.CreateItem(id, _boardParent, _cellSize);
                 if (item != null)
                 {
                     item.Init(onItemClicked);

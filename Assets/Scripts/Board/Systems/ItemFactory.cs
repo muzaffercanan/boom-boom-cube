@@ -24,7 +24,7 @@ public class ItemFactory : ScriptableObject
     public List<ItemPrefabMap> mappings;
 
     [Header("Settings")]
-    [SerializeField] private float _itemScale = 0.95f;
+    [SerializeField] private float _itemScale = 1.0f;
 
     private static readonly ItemId[] RandomColors = { ItemId.Red, ItemId.Green, ItemId.Blue, ItemId.Yellow };
     private readonly Dictionary<ItemId, GameObject> _prefabCache = new Dictionary<ItemId, GameObject>();
@@ -83,12 +83,12 @@ public class ItemFactory : ScriptableObject
         return null;
     }
 
-    public IBoardItem CreateItem(string id, Transform parent)
+    public IBoardItem CreateItem(string id, Transform parent, float cellSize = 1f)
     {
-        return CreateItem(ItemIds.ToItemId(id), parent);
+        return CreateItem(ItemIds.ToItemId(id), parent, cellSize);
     }
 
-    public IBoardItem CreateItem(ItemId itemId, Transform parent)
+    public IBoardItem CreateItem(ItemId itemId, Transform parent, float cellSize = 1f)
     {
         itemId = ResolveRandomId(itemId);
 
@@ -96,7 +96,7 @@ public class ItemFactory : ScriptableObject
         if (prefab == null) return null;
 
         GameObject instance = Instantiate(prefab, parent);
-        instance.transform.localScale = Vector3.one * _itemScale;
+        instance.transform.localScale = Vector3.one * (_itemScale * cellSize);
         var boardItem = instance.GetComponent<IBoardItem>();
 
         if (boardItem is CubeItem cubeItem)

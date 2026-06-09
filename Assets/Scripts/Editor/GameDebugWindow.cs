@@ -2,9 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 using DreamGames.Board.Systems;
-using DreamGames.Board.Items;
 using DreamGames.Core;
-using DreamGames.Data;
 using DreamGames.Gameplay;
 
 namespace DreamGames.Editor
@@ -15,33 +13,37 @@ public class GameDebugWindow : EditorWindow
     public static void Open()
     {
         var w = GetWindow<GameDebugWindow>("DG Debug");
-        w.minSize = new Vector2(330f, 300f);
+        w.minSize = new Vector2(320f, 280f);
     }
 
-    // ─── State ────────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
     private GameManager _gm;
-    private Vector2 _scroll;
+    private Vector2     _scroll;
+    private int         _boardW = 9, _boardH = 9;
+    private float       _cellSize = 1f;
+    private int         _lastW = -1, _lastH = -1;
+    private float       _lastCS = -1f;
 
-    private int   _boardW   = 9;
-    private int   _boardH   = 9;
-    private float _cellSize = 1f;
-    private int   _lastW    = -1;
-    private int   _lastH    = -1;
-    private float _lastCS   = -1f;
+    // ── Styles ────────────────────────────────────────────────────────────────
+    private GUIStyle _headerLabel;
+    private GUIStyle _valueLabel;
+    private GUIStyle _dimLabel;
+    private GUIStyle _btnNeutral;
+    private GUIStyle _btnActive;
+    private GUIStyle _btnApply;
+    private GUIStyle _btnDanger;
+    private GUIStyle _btnSmall;
+    private bool     _stylesReady;
 
-    // ─── Cached styles ────────────────────────────────────────────────────────
-    private GUIStyle _headerStyle;
-    private GUIStyle _btnStyle;
-    private GUIStyle _btnActiveStyle;
-    private GUIStyle _btnSmallStyle;
-    private GUIStyle _infoStyle;
-    private bool _stylesReady;
+    private static readonly GUILayoutOption H22   = GUILayout.Height(22f);
+    private static readonly GUILayoutOption H18   = GUILayout.Height(18f);
+    private static readonly GUILayoutOption W80   = GUILayout.Width(80f);
+    private static readonly GUILayoutOption W64   = GUILayout.Width(64f);
+    private static readonly Color           BgHeader = new Color(0.12f, 0.12f, 0.16f, 1f);
+    private static readonly Color           BgStatus = new Color(0.09f, 0.09f, 0.12f, 1f);
 
     // ─────────────────────────────────────────────────────────────────────────
-    private void Update()
-    {
-        if (Application.isPlaying) Repaint();
-    }
+    private void Update() { if (Application.isPlaying) Repaint(); }
 
     private void OnGUI()
     {
@@ -49,264 +51,284 @@ public class GameDebugWindow : EditorWindow
 
         if (!Application.isPlaying)
         {
-            EditorGUILayout.Space(8);
+            GUILayout.Space(10f);
             EditorGUILayout.HelpBox("Play mode'da çalışır.", MessageType.Info);
             return;
         }
 
         if (_gm == null) _gm = FindObjectOfType<GameManager>();
-        if (_gm == null)
-        {
-            EditorGUILayout.HelpBox("GameManager bulunamadı.", MessageType.Warning);
-            return;
-        }
+        if (_gm == null) { EditorGUILayout.HelpBox("GameManager bulunamadı.", MessageType.Warning); return; }
 
         SyncEdits();
-
-        // ── Status bar ───────────────────────────────────────────────────────
-        int  lvl  = _gm.DebugCurrentLevel;
-        bool over = _gm.DebugIsGameOver;
-        bool proc = _gm.IsProcessingTurn;
-        int  mov  = _gm.RemainingMoves;
-        string st = over ? "GAME OVER" : proc ? "İşleniyor…" : "Oynuyor";
-        Color stCol = over ? Color.red : proc ? Color.yellow : Color.green;
-        GUI.color = new Color(0f, 0f, 0f, 0.25f);
-        GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(24f));
-        GUI.color = Color.white;
-        Rect statusRect = GUILayoutUtility.GetLastRect();
-        GUI.Label(new Rect(statusRect.x + 6f, statusRect.y + 4f, statusRect.width - 8f, 18f),
-            $"Level <b>{lvl}</b>   Hamle <b>{mov}</b>", _infoStyle);
-        var oldColor = GUI.contentColor;
-        GUI.contentColor = stCol;
-        GUI.Label(new Rect(statusRect.x + statusRect.width - 90f, statusRect.y + 4f, 86f, 18f),
-            $"<b>{st}</b>", _infoStyle);
-        GUI.contentColor = oldColor;
-
-        GUILayout.Space(2f);
+        DrawStatusBar();
 
         _scroll = GUILayout.BeginScrollView(_scroll);
+        GUILayout.Space(2f);
 
-        // ── HAMLE ─────────────────────────────────────────────────────────────
-        DrawHeader("HAMLE");
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("+5",  _btnStyle)) _gm.DebugAddMoves(5);
-        if (GUILayout.Button("+10", _btnStyle)) _gm.DebugAddMoves(10);
-        if (GUILayout.Button("-5",  _btnStyle)) _gm.DebugAddMoves(-5);
-        GUILayout.EndHorizontal();
-        DrawSep();
+        Section("HAMLE", DrawMoves);
+        Section("LEVEL", DrawLevel);
+        Section($"BOARD BOYUTU  <color=#666>{_gm.DebugGrid?.Width ?? 0} × {_gm.DebugGrid?.Height ?? 0}</color>", DrawBoardSize);
+        Section($"CELL SIZE  <color=#666>{_gm.DebugCellSize:F2}</color>", DrawCellSize);
+        Section($"ITEM ARALIK  <color=#666>{GameDebug.ItemScale:F2}</color>", DrawItemScale);
+        Section($"ANİMASYON HIZI  <color=#666>×{GameDebug.SpeedMultiplier:F2}</color>", DrawAnimSpeed);
+        Section($"ROKET HIZI  <color=#666>{GameDebug.RocketSpeed:F1}</color>", DrawRocketSpeed);
+        Section("GOALS  /  SHUFFLE", DrawActions);
+        Section("LOG  /  GÖRÜNÜM", DrawLog);
 
-        // ── LEVEL ─────────────────────────────────────────────────────────────
-        DrawHeader("LEVEL");
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("◄ Önceki",  _btnStyle)) _gm.DebugLoadPrevLevel();
-        if (GUILayout.Button("↺ Yenile",  _btnStyle)) _gm.DebugReloadLevel();
-        if (GUILayout.Button("Sonraki ►", _btnStyle)) _gm.DebugLoadNextLevel();
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── BOARD BOYUTU ──────────────────────────────────────────────────────
-        DrawHeader("BOARD BOYUTU");
-        int curW = _gm.DebugGrid?.Width  ?? 0;
-        int curH = _gm.DebugGrid?.Height ?? 0;
-        GUILayout.Label($"Mevcut: {curW} × {curH}", _infoStyle);
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("W:", _infoStyle, GUILayout.Width(20f));
-        if (GUILayout.Button("−", _btnSmallStyle, GUILayout.Width(26f))) _boardW = Mathf.Max(2, _boardW - 1);
-        GUILayout.Label(_boardW.ToString(), _infoStyle, GUILayout.Width(22f));
-        if (GUILayout.Button("+", _btnSmallStyle, GUILayout.Width(26f))) _boardW = Mathf.Min(20, _boardW + 1);
         GUILayout.Space(10f);
-        GUILayout.Label("H:", _infoStyle, GUILayout.Width(20f));
-        if (GUILayout.Button("−", _btnSmallStyle, GUILayout.Width(26f))) _boardH = Mathf.Max(2, _boardH - 1);
-        GUILayout.Label(_boardH.ToString(), _infoStyle, GUILayout.Width(22f));
-        if (GUILayout.Button("+", _btnSmallStyle, GUILayout.Width(26f))) _boardH = Mathf.Min(20, _boardH + 1);
-        GUILayout.FlexibleSpace();
-        if (GUILayout.Button("Reload →", _btnStyle)) _gm.DebugReloadWithSize(_boardW, _boardH);
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── CELL SIZE ─────────────────────────────────────────────────────────
-        DrawHeader("CELL SIZE");
-        GUILayout.Label($"Mevcut: {_gm.DebugCellSize:F2}", _infoStyle);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("−0.1",  _btnSmallStyle)) _cellSize = Mathf.Max(0.2f, _cellSize - 0.1f);
-        if (GUILayout.Button("−0.05", _btnSmallStyle)) _cellSize = Mathf.Max(0.2f, _cellSize - 0.05f);
-        GUILayout.Label(_cellSize.ToString("F2"), _infoStyle, GUILayout.Width(36f));
-        if (GUILayout.Button("+0.05", _btnSmallStyle)) _cellSize = Mathf.Min(4f, _cellSize + 0.05f);
-        if (GUILayout.Button("+0.1",  _btnSmallStyle)) _cellSize = Mathf.Min(4f, _cellSize + 0.1f);
-        GUILayout.FlexibleSpace();
-        if (GUILayout.Button("Apply →", _btnStyle)) _gm.DebugApplyCellSize(_cellSize);
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── ITEM ARALIK ───────────────────────────────────────────────────────
-        DrawHeader("ITEM ARALIK  (scale)");
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("−0.05", _btnSmallStyle))
-        {
-            GameDebug.ItemScale = Mathf.Max(0.2f, GameDebug.ItemScale - 0.05f);
-            _gm.DebugSetItemScale(GameDebug.ItemScale);
-        }
-        GUILayout.Label(GameDebug.ItemScale.ToString("F2"), _infoStyle, GUILayout.Width(36f));
-        if (GUILayout.Button("+0.05", _btnSmallStyle))
-        {
-            GameDebug.ItemScale = Mathf.Min(1.5f, GameDebug.ItemScale + 0.05f);
-            _gm.DebugSetItemScale(GameDebug.ItemScale);
-        }
-        GUILayout.Label(" anlık uygulanır", _infoStyle);
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── ANİMASYON HIZI ────────────────────────────────────────────────────
-        DrawHeader($"ANİMASYON HIZI  ×{GameDebug.SpeedMultiplier:F2}");
-        GUILayout.BeginHorizontal();
-        DrawSpeedBtn(0.25f, "0.25×");
-        DrawSpeedBtn(0.5f,  "0.5×");
-        DrawSpeedBtn(1f,    "1×");
-        DrawSpeedBtn(2f,    "2×");
-        DrawSpeedBtn(4f,    "4×");
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── ROKET HIZI ────────────────────────────────────────────────────────
-        DrawHeader($"ROKET HIZI  {GameDebug.RocketSpeed:F1}");
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("−2",   _btnSmallStyle)) GameDebug.RocketSpeed = Mathf.Max(1f,  GameDebug.RocketSpeed - 2f);
-        if (GUILayout.Button("−1",   _btnSmallStyle)) GameDebug.RocketSpeed = Mathf.Max(1f,  GameDebug.RocketSpeed - 1f);
-        GUILayout.Label(GameDebug.RocketSpeed.ToString("F1"), _infoStyle, GUILayout.Width(36f));
-        if (GUILayout.Button("+1",   _btnSmallStyle)) GameDebug.RocketSpeed = Mathf.Min(80f, GameDebug.RocketSpeed + 1f);
-        if (GUILayout.Button("+5",   _btnSmallStyle)) GameDebug.RocketSpeed = Mathf.Min(80f, GameDebug.RocketSpeed + 5f);
-        if (GUILayout.Button("Reset",_btnSmallStyle)) GameDebug.RocketSpeed = 12f;
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── GOALS ─────────────────────────────────────────────────────────────
-        DrawHeader("GOALS");
-        if (GUILayout.Button("Force Win  (tüm goal'ları tamamla)", _btnStyle))
-            _gm.DebugForceCompleteGoals();
-        DrawSep();
-
-        // ── SHUFFLE ───────────────────────────────────────────────────────────
-        DrawHeader("SHUFFLE");
-        if (GUILayout.Button("Force Shuffle  (küpleri karıştır)", _btnStyle))
-            _gm.DebugForceShuffle();
-        DrawSep();
-
-        // ── LOG ───────────────────────────────────────────────────────────────
-        DrawHeader("LOG / SNAPSHOT");
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Export Log", _btnStyle))
-        {
-            string log = _gm.ExportSessionLog();
-            Debug.Log("[DebugPanel] Session Log:\n" + log);
-            EditorGUIUtility.systemCopyBuffer = log;
-        }
-        if (GUILayout.Button("Board Snapshot", _btnStyle))
-        {
-            var snap = _gm.CaptureBoardSnapshot();
-            string s = snap != null ? snap.ToDebugString() : "null";
-            Debug.Log("[DebugPanel] Snapshot:\n" + s);
-            EditorGUIUtility.systemCopyBuffer = s;
-        }
-        GUILayout.EndHorizontal();
-        DrawSep();
-
-        // ── GÖRÜNÜM ───────────────────────────────────────────────────────────
-        DrawHeader("GÖRÜNÜM");
-        GameDebug.ShowBoardOverlay = GUILayout.Toggle(
-            GameDebug.ShowBoardOverlay,
-            "  Board Overlay  (item tipi + health)",
-            _infoStyle);
-
-        GUILayout.Space(6f);
         GUILayout.EndScrollView();
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ── Status bar ────────────────────────────────────────────────────────────
+    private void DrawStatusBar()
+    {
+        Rect bar = EditorGUILayout.GetControlRect(false, 30f);
+        EditorGUI.DrawRect(bar, BgStatus);
+
+        bool over = _gm.DebugIsGameOver;
+        bool proc = _gm.IsProcessingTurn;
+        Color stCol = over  ? new Color(0.9f, 0.35f, 0.35f)
+                    : proc  ? new Color(0.95f, 0.82f, 0.2f)
+                    :         new Color(0.35f, 0.85f, 0.5f);
+        string stTxt = over ? "GAME OVER" : proc ? "İşleniyor" : "Oynuyor";
+
+        // Left: level + moves
+        var leftStyle = new GUIStyle(_valueLabel) { fontSize = 12, alignment = TextAnchor.MiddleLeft, richText = true };
+        GUI.Label(new Rect(bar.x + 10f, bar.y, bar.width * 0.65f, bar.height),
+            $"Level  <b>{_gm.DebugCurrentLevel}</b>   —   Hamle  <b>{_gm.RemainingMoves}</b>",
+            leftStyle);
+
+        // Right: status
+        var rightStyle = new GUIStyle(_valueLabel) { fontSize = 11, alignment = TextAnchor.MiddleRight };
+        rightStyle.normal.textColor = stCol;
+        GUI.Label(new Rect(bar.x, bar.y, bar.width - 10f, bar.height), stTxt, rightStyle);
+    }
+
+    // ── Section draw methods ──────────────────────────────────────────────────
+    private void DrawMoves()
+    {
+        Row(() =>
+        {
+            if (Btn("+5",  _btnNeutral)) _gm.DebugAddMoves(5);
+            if (Btn("+10", _btnNeutral)) _gm.DebugAddMoves(10);
+            if (Btn("−5",  _btnNeutral)) _gm.DebugAddMoves(-5);
+        });
+    }
+
+    private void DrawLevel()
+    {
+        Row(() =>
+        {
+            if (Btn("◄ Önceki",  _btnNeutral)) _gm.DebugLoadPrevLevel();
+            if (Btn("↺ Yenile",  _btnNeutral)) _gm.DebugReloadLevel();
+            if (Btn("Sonraki ►", _btnNeutral)) _gm.DebugLoadNextLevel();
+        });
+    }
+
+    private void DrawBoardSize()
+    {
+        Row(() =>
+        {
+            GUILayout.Label("W", _dimLabel, GUILayout.Width(14f));
+            if (SmBtn("−")) _boardW = Mathf.Max(2,  _boardW - 1);
+            Val(_boardW.ToString(), 26f);
+            if (SmBtn("+")) _boardW = Mathf.Min(20, _boardW + 1);
+            GUILayout.Space(10f);
+            GUILayout.Label("H", _dimLabel, GUILayout.Width(14f));
+            if (SmBtn("−")) _boardH = Mathf.Max(2,  _boardH - 1);
+            Val(_boardH.ToString(), 26f);
+            if (SmBtn("+")) _boardH = Mathf.Min(20, _boardH + 1);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Reload →", _btnApply, H22, W80))
+                _gm.DebugReloadWithSize(_boardW, _boardH);
+        });
+    }
+
+    private void DrawCellSize()
+    {
+        Row(() =>
+        {
+            if (SmBtn("−0.1"))  _cellSize = Mathf.Max(0.2f, _cellSize - 0.10f);
+            if (SmBtn("−0.05")) _cellSize = Mathf.Max(0.2f, _cellSize - 0.05f);
+            if (SmBtn("−0.01")) _cellSize = Mathf.Max(0.2f, _cellSize - 0.01f);
+            Val(_cellSize.ToString("F2"), 36f);
+            if (SmBtn("+0.01")) _cellSize = Mathf.Min(4f, _cellSize + 0.01f);
+            if (SmBtn("+0.05")) _cellSize = Mathf.Min(4f, _cellSize + 0.05f);
+            if (SmBtn("+0.1"))  _cellSize = Mathf.Min(4f, _cellSize + 0.10f);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Apply →", _btnApply, H22, W64))
+                _gm.DebugApplyCellSize(_cellSize);
+        });
+    }
+
+    private void DrawItemScale()
+    {
+        Row(() =>
+        {
+            if (SmBtn("−0.05")) Apply(ref GameDebug.ItemScale, -0.05f);
+            if (SmBtn("−0.01")) Apply(ref GameDebug.ItemScale, -0.01f);
+            Val(GameDebug.ItemScale.ToString("F2"), 36f);
+            if (SmBtn("+0.01")) Apply(ref GameDebug.ItemScale, +0.01f);
+            if (SmBtn("+0.05")) Apply(ref GameDebug.ItemScale, +0.05f);
+        });
+    }
+
+    private void DrawAnimSpeed()
+    {
+        Row(() =>
+        {
+            SpeedBtn(0.25f, "0.25×");
+            SpeedBtn(0.5f,  "0.5×");
+            SpeedBtn(1f,    "1×");
+            SpeedBtn(2f,    "2×");
+            SpeedBtn(4f,    "4×");
+        });
+    }
+
+    private void DrawRocketSpeed()
+    {
+        Row(() =>
+        {
+            if (SmBtn("−2")) GameDebug.RocketSpeed = Mathf.Max(1f,  GameDebug.RocketSpeed - 2f);
+            if (SmBtn("−1")) GameDebug.RocketSpeed = Mathf.Max(1f,  GameDebug.RocketSpeed - 1f);
+            Val(GameDebug.RocketSpeed.ToString("F1"), 36f);
+            if (SmBtn("+1")) GameDebug.RocketSpeed = Mathf.Min(80f, GameDebug.RocketSpeed + 1f);
+            if (SmBtn("+5")) GameDebug.RocketSpeed = Mathf.Min(80f, GameDebug.RocketSpeed + 5f);
+            GUILayout.FlexibleSpace();
+            if (SmBtn("Reset")) GameDebug.RocketSpeed = 12f;
+        });
+    }
+
+    private void DrawActions()
+    {
+        Row(() =>
+        {
+            if (GUILayout.Button("Force Win",     _btnDanger,  H22)) _gm.DebugForceCompleteGoals();
+            if (GUILayout.Button("Force Shuffle", _btnNeutral, H22)) _gm.DebugForceShuffle();
+        });
+    }
+
+    private void DrawLog()
+    {
+        Row(() =>
+        {
+            if (Btn("Export Log", _btnNeutral))
+            {
+                string log = _gm.ExportSessionLog();
+                Debug.Log("[Debug] Log:\n" + log);
+                EditorGUIUtility.systemCopyBuffer = log;
+            }
+            if (Btn("Snapshot", _btnNeutral))
+            {
+                var snap = _gm.CaptureBoardSnapshot();
+                string s = snap != null ? snap.ToDebugString() : "null";
+                Debug.Log("[Debug] Snapshot:\n" + s);
+                EditorGUIUtility.systemCopyBuffer = s;
+            }
+        });
+        GUILayout.Space(2f);
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(10f);
+        GameDebug.ShowBoardOverlay = GUILayout.Toggle(GameDebug.ShowBoardOverlay, "  Board Overlay", _dimLabel);
+        GUILayout.EndHorizontal();
+        GUILayout.Space(4f);
+    }
+
+    // ── UI primitives ─────────────────────────────────────────────────────────
+    private void Section(string title, System.Action draw)
+    {
+        GUILayout.Space(4f);
+        Rect hr = EditorGUILayout.GetControlRect(false, 21f);
+        EditorGUI.DrawRect(hr, BgHeader);
+        var hs = new GUIStyle(_headerLabel) { richText = true };
+        GUI.Label(new Rect(hr.x + 8f, hr.y + 1f, hr.width - 10f, hr.height), title, hs);
+        draw();
+    }
+
+    private void Row(System.Action content)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(10f);
+        GUILayout.BeginVertical();
+        GUILayout.Space(4f);
+        GUILayout.BeginHorizontal();
+        content();
+        GUILayout.EndHorizontal();
+        GUILayout.Space(4f);
+        GUILayout.EndVertical();
+        GUILayout.Space(10f);
+        GUILayout.EndHorizontal();
+    }
+
+    private bool Btn(string label, GUIStyle style) =>
+        GUILayout.Button(label, style, H22);
+
+    private bool SmBtn(string label) =>
+        GUILayout.Button(label, _btnSmall, H18);
+
+    private void Val(string text, float w) =>
+        GUILayout.Label(text, _valueLabel, GUILayout.Width(w), H22);
+
+    private void SpeedBtn(float speed, string label)
+    {
+        bool active = Mathf.Approximately(GameDebug.SpeedMultiplier, speed);
+        if (GUILayout.Button(label, active ? _btnActive : _btnNeutral, H22))
+            GameDebug.SpeedMultiplier = speed;
+    }
+
+    private void Apply(ref float val, float delta)
+    {
+        val = Mathf.Clamp(val + delta, 0.2f, 1.5f);
+        _gm.DebugSetItemScale(val);
+    }
+
     private void SyncEdits()
     {
         var grid = _gm.DebugGrid;
         float cs = _gm.DebugCellSize;
         if (grid == null) return;
-
         if (grid.Width != _lastW || grid.Height != _lastH)
         {
-            _boardW = grid.Width;
-            _boardH = grid.Height;
-            _lastW  = grid.Width;
-            _lastH  = grid.Height;
+            _boardW = grid.Width; _boardH = grid.Height;
+            _lastW = grid.Width; _lastH = grid.Height;
         }
-        if (!Mathf.Approximately(cs, _lastCS))
-        {
-            _cellSize = cs;
-            _lastCS   = cs;
-        }
+        if (!Mathf.Approximately(cs, _lastCS)) { _cellSize = cs; _lastCS = cs; }
     }
 
-    private void DrawHeader(string text)
-    {
-        GUILayout.Space(2f);
-        GUILayout.Label(text, _headerStyle);
-    }
-
-    private void DrawSep()
-    {
-        GUILayout.Space(2f);
-        var r = EditorGUILayout.GetControlRect(false, 1f);
-        EditorGUI.DrawRect(r, new Color(0.4f, 0.4f, 0.4f, 0.4f));
-        GUILayout.Space(2f);
-    }
-
-    private void DrawSpeedBtn(float speed, string label)
-    {
-        bool active = Mathf.Approximately(GameDebug.SpeedMultiplier, speed);
-        if (GUILayout.Button(label, active ? _btnActiveStyle : _btnStyle))
-            GameDebug.SpeedMultiplier = speed;
-    }
-
-    // ─── Style init ───────────────────────────────────────────────────────────
+    // ── Style init ────────────────────────────────────────────────────────────
     private void EnsureStyles()
     {
         if (_stylesReady) return;
         _stylesReady = true;
 
-        _headerStyle = new GUIStyle(EditorStyles.boldLabel)
-        {
-            fontSize = 11,
-        };
-        _headerStyle.normal.textColor = new Color(1f, 0.82f, 0.3f);
+        _headerLabel = new GUIStyle(EditorStyles.boldLabel) { fontSize = 11 };
+        _headerLabel.normal.textColor = new Color(1f, 0.84f, 0.32f);
 
-        _infoStyle = new GUIStyle(EditorStyles.label)
-        {
-            fontSize = 11,
-            richText = true,
-        };
-        _infoStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+        _valueLabel = new GUIStyle(EditorStyles.boldLabel) { fontSize = 11, alignment = TextAnchor.MiddleCenter };
+        _valueLabel.normal.textColor = Color.white;
 
-        Texture2D tBtn  = MakeTex(new Color(0.25f, 0.25f, 0.28f, 1f));
-        Texture2D tBtnH = MakeTex(new Color(0.33f, 0.33f, 0.38f, 1f));
-        Texture2D tAct  = MakeTex(new Color(0.15f, 0.42f, 0.70f, 1f));
-        Texture2D tActH = MakeTex(new Color(0.20f, 0.52f, 0.84f, 1f));
+        _dimLabel = new GUIStyle(EditorStyles.label) { fontSize = 11 };
+        _dimLabel.normal.textColor = new Color(0.72f, 0.72f, 0.72f);
 
-        _btnStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize  = 11,
-            fontStyle = FontStyle.Bold,
-        };
-        _btnStyle.normal.background = tBtn;
-        _btnStyle.hover.background  = tBtnH;
-        _btnStyle.normal.textColor  = Color.white;
-        _btnStyle.hover.textColor   = Color.white;
-        _btnStyle.padding = new RectOffset(5, 5, 3, 3);
-
-        _btnActiveStyle = new GUIStyle(_btnStyle);
-        _btnActiveStyle.normal.background = tAct;
-        _btnActiveStyle.hover.background  = tActH;
-
-        _btnSmallStyle = new GUIStyle(_btnStyle) { fontSize = 10 };
-        _btnSmallStyle.padding = new RectOffset(4, 4, 2, 2);
+        _btnNeutral = Btn2(new Color(0.23f, 0.23f, 0.27f), new Color(0.30f, 0.30f, 0.36f));
+        _btnSmall   = Btn2(new Color(0.20f, 0.20f, 0.24f), new Color(0.28f, 0.28f, 0.34f), 10);
+        _btnActive  = Btn2(new Color(0.13f, 0.40f, 0.68f), new Color(0.17f, 0.50f, 0.82f));
+        _btnApply   = Btn2(new Color(0.13f, 0.44f, 0.22f), new Color(0.17f, 0.55f, 0.28f));
+        _btnDanger  = Btn2(new Color(0.50f, 0.13f, 0.13f), new Color(0.62f, 0.17f, 0.17f));
     }
 
-    private static Texture2D MakeTex(Color c)
+    private GUIStyle Btn2(Color normal, Color hover, int size = 11)
+    {
+        var s = new GUIStyle(GUI.skin.button) { fontSize = size, fontStyle = FontStyle.Bold };
+        s.normal.background = Tex(normal);
+        s.hover.background  = Tex(hover);
+        s.normal.textColor  = Color.white;
+        s.hover.textColor   = Color.white;
+        s.padding = new RectOffset(4, 4, 2, 2);
+        return s;
+    }
+
+    private static Texture2D Tex(Color c)
     {
         var t = new Texture2D(2, 2);
         t.SetPixels(new[] { c, c, c, c });
