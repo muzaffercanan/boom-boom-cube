@@ -14,10 +14,31 @@ namespace DreamGames.Gameplay
 public sealed class BoardSceneReferences
 {
     public ItemFactory ItemFactory;
+    public BoardVisualConfig VisualConfig;
     public Transform BoardParent;
     public BoardSetupController BoardSetup;
     public GameObject LevelButton;
     public float CellSize = 1f;
+
+    public float ResolveCellSize()
+    {
+        if (VisualConfig != null)
+        {
+            return VisualConfig.CellSize;
+        }
+
+        if (ItemFactory != null && ItemFactory.VisualConfig != null)
+        {
+            return ItemFactory.VisualConfig.CellSize;
+        }
+
+        return Mathf.Max(0.01f, CellSize);
+    }
+
+    public BoardVisualConfig ResolveVisualConfig()
+    {
+        return VisualConfig != null ? VisualConfig : ItemFactory != null ? ItemFactory.VisualConfig : null;
+    }
 
     public void ApplyLegacy(
         ItemFactory itemFactory,

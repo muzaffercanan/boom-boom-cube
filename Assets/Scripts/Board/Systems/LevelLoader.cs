@@ -14,14 +14,19 @@ public class LevelLoader
 {
     private ItemFactory _factory;
     private Transform _boardParent;
-    private float _cellSize;
+    private BoardGeometry _geometry;
     private bool _enableDebugLogs;
 
     public LevelLoader(ItemFactory factory, Transform boardParent, float cellSize = 1.0f, bool enableDebugLogs = false)
+        : this(factory, boardParent, new BoardGeometry(boardParent, cellSize), enableDebugLogs)
+    {
+    }
+
+    public LevelLoader(ItemFactory factory, Transform boardParent, BoardGeometry geometry, bool enableDebugLogs = false)
     {
         _factory = factory;
         _boardParent = boardParent;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(boardParent, 1f);
         _enableDebugLogs = enableDebugLogs;
     }
 
@@ -39,11 +44,6 @@ public class LevelLoader
             return;
         }
 
-        if (_cellSize <= 0f)
-        {
-            Debug.LogError($"[LevelLoader] cellSize <= 0 ! cellSize={_cellSize}");
-        }
-
         LogBoardParent();
 
         ClearBoardParent();
@@ -58,7 +58,7 @@ public class LevelLoader
 
                 string id = data.grid[index];
 
-                var item = _factory.CreateItem(id, _boardParent, _cellSize);
+                var item = _factory.CreateItem(id, _boardParent, _geometry.CellSize);
                 if (item != null)
                 {
                     item.Init(onItemClicked);
@@ -75,11 +75,11 @@ public class LevelLoader
                         bool isRootObj = (go.transform == go.transform.root);
 
 
-                        float worldY = y * _cellSize;
-                        go.transform.localPosition = new Vector3(x * _cellSize, worldY, 0);
+                        Vector3 localPosition = _geometry.CellToLocalPosition(x, y);
+                        go.transform.localPosition = localPosition;
 
                         LogDebug(
-                            $"[LevelLoader] Spawn id={id} at grid({x},{y}) world({x * _cellSize},{worldY}) " +
+                            $"[LevelLoader] Spawn id={id} at grid({x},{y}) local({localPosition.x},{localPosition.y}) " +
                             $"go={go.name} isRoot={isRootObj} root={root.name}"
                         );
 

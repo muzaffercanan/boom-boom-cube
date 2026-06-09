@@ -19,14 +19,20 @@ public sealed class GameplaySystemFactory
         GridSystem gridSystem = new GridSystem();
         MatchSystem matchSystem = new MatchSystem(gridSystem);
         BoardAnimationConfig animationConfig = config.BoardAnimation ?? BoardAnimationConfig.Default;
-        GravitySystem gravitySystem = new GravitySystem(gridSystem, config.CellSize, animationConfig);
+        BoardGeometry geometry = new BoardGeometry(config.BoardParent, config.CellSize);
+        if (config.ItemFactory != null && config.VisualConfig != null)
+        {
+            config.ItemFactory.SetVisualConfig(config.VisualConfig);
+        }
+
+        GravitySystem gravitySystem = new GravitySystem(gridSystem, geometry, animationConfig);
         RocketHintSystem rocketHintSystem = new RocketHintSystem(gridSystem, matchSystem, config.RocketMatchSize);
 
         BoardFiller boardFiller = new BoardFiller(
             gridSystem,
             config.ItemFactory,
             config.BoardParent,
-            config.CellSize,
+            geometry,
             animationConfig);
 
         BoardResolver boardResolver = new BoardResolver(
@@ -72,7 +78,7 @@ public sealed class GameplaySystemFactory
             turnLogger,
             config.MinMatchSize,
             config.RocketMatchSize,
-            config.CellSize,
+            geometry,
             config.PlaySound,
             config.MatchSfx
         );
@@ -90,7 +96,7 @@ public sealed class GameplaySystemFactory
             gridSystem,
             config.ItemFactory,
             config.BoardParent,
-            config.CellSize,
+            geometry,
             config.CoroutineRunner,
             turnProcessor.HandleDamage,
             config.RocketSfx
@@ -102,13 +108,14 @@ public sealed class GameplaySystemFactory
             gameStateController,
             config.CoroutineRunner,
             config.PlaySound,
-            config.TapSfx);
+            config.TapSfx,
+            geometry);
         boardFiller.SetClickCallback(boardInputRouter.OnItemClicked);
 
         LevelLoader levelLoader = new LevelLoader(
             config.ItemFactory,
             config.BoardParent,
-            config.CellSize,
+            geometry,
             config.EnableLevelLoaderDebugLogs);
 
         return new GameplaySystems(
@@ -132,6 +139,7 @@ public sealed class GameplaySystemFactory
 public sealed class GameplaySystemFactoryConfig
 {
     public ItemFactory ItemFactory { get; set; }
+    public BoardVisualConfig VisualConfig { get; set; }
     public Transform BoardParent { get; set; }
     public float CellSize { get; set; }
     public TextAsset LevelJson { get; set; }

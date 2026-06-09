@@ -1,11 +1,7 @@
 using UnityEngine;
-using DreamGames.Board.Items;
 using DreamGames.Board.Systems;
 using DreamGames.Board.Visuals;
-using DreamGames.Core;
 using DreamGames.Data;
-using DreamGames.Gameplay;
-using DreamGames.UI;
 
 namespace DreamGames.Gameplay
 {
@@ -15,51 +11,89 @@ public class BoardSetupController : MonoBehaviour
     [SerializeField] private SpriteRenderer _gridBackgroundRenderer;
     [SerializeField] private float _backgroundPaddingX = 0.05f;
     [SerializeField] private float _backgroundPaddingY = 0.05f;
+    [SerializeField] private BoardVisualConfig _visualConfig;
 
     [Header("Camera")]
     [SerializeField] private Camera _camera;
     [SerializeField] private float _cameraOffsetY = 2.0f;
 
+    public Camera Camera => _camera != null ? _camera : Camera.main;
+
+    public void SetVisualConfig(BoardVisualConfig visualConfig)
+    {
+        if (visualConfig != null)
+        {
+            _visualConfig = visualConfig;
+        }
+    }
+
     public void SetupForLevel(LevelData levelData, Transform boardParent, float cellSize)
     {
-        UpdateGridBackground(levelData, boardParent, cellSize);
-        UpdateCamera(levelData, boardParent, cellSize);
+        SetupForLevel(levelData, boardParent, cellSize, _visualConfig, null);
+    }
+
+    public void SetupForLevel(
+        LevelData levelData,
+        Transform boardParent,
+        float cellSize,
+        BoardVisualConfig visualConfig,
+        ItemFactory itemFactory)
+    {
+        if (levelData == null)
+        {
+            return;
+        }
+
+        if (visualConfig != null)
+        {
+            _visualConfig = visualConfig;
+        }
+
+        BoardGeometry geometry = new BoardGeometry(boardParent, ResolveCellSize(cellSize));
+        Vector2 backgroundPadding = ResolveBackgroundPadding();
+        Vector2 visualHalfExtents = ResolveVisualHalfExtents(itemFactory, geometry.CellSize);
+        Rect visualBounds = geometry.GetVisualBoardBounds(
+            levelData.grid_width,
+            levelData.grid_height,
+            visualHalfExtents,
+            backgroundPadding);
+
+        UpdateGridBackground(boardParent, visualBounds);
+        UpdateCamera(boardParent, visualBounds, ResolveCameraPadding());
     }
 
     public void HideBackground()
     {
         if (_gridBackgroundRenderer != null)
+        {
             _gridBackgroundRenderer.gameObject.SetActive(false);
+        }
     }
 
-    private void UpdateGridBackground(LevelData levelData, Transform boardParent, float cellSize)
+    private void UpdateGridBackground(Transform boardParent, Rect visualBounds)
     {
         if (_gridBackgroundRenderer == null) return;
 
         if (_gridBackgroundRenderer.transform.parent != null)
+        {
             _gridBackgroundRenderer.transform.SetParent(null);
+        }
 
         _gridBackgroundRenderer.gameObject.SetActive(true);
         _gridBackgroundRenderer.drawMode = SpriteDrawMode.Sliced;
+        _gridBackgroundRenderer.size = visualBounds.size;
 
-        float gridWidth = levelData.grid_width * cellSize;
-        float gridHeight = levelData.grid_height * cellSize;
-
-        _gridBackgroundRenderer.size = new Vector2(
-            gridWidth + _backgroundPaddingX * 2,
-            gridHeight + _backgroundPaddingY * 2
-        );
-
-        float centerX = (gridWidth - cellSize) / 2f;
-        float centerY = (gridHeight - cellSize) / 2f;
-        Vector3 worldCenter = boardParent.TransformPoint(new Vector3(centerX, centerY, 0f));
+        Vector2 localCenter = visualBounds.center;
+        Vector3 worldCenter = boardParent != null
+            ? boardParent.TransformPoint(new Vector3(localCenter.x, localCenter.y, 0f))
+            : new Vector3(localCenter.x, localCenter.y, 0f);
         worldCenter.z = 0.5f;
 
         _gridBackgroundRenderer.transform.position = worldCenter;
         _gridBackgroundRenderer.transform.localScale = Vector3.one;
     }
 
-    private void UpdateCamera(LevelData levelData, Transform boardParent, float cellSize)
+    private void UpdateCamera(Transform boardParent, Rect visualBounds, Vector2 cameraPadding)
     {
         if (_camera == null) _camera = Camera.main;
         if (_camera == null) return;
@@ -69,21 +103,67 @@ public class BoardSetupController : MonoBehaviour
             : _camera.aspect;
         if (screenRatio <= 0f) screenRatio = 1f;
 
-        float boardWidth = levelData.grid_width * cellSize;
-        float boardHeight = levelData.grid_height * cellSize;
-
-        // Board item centers are at x*cellSize, y*cellSize; visual extents add ±cellSize/2
-        float localCenterX = (boardWidth - cellSize) / 2f;
-        float localCenterY = (boardHeight - cellSize) / 2f;
+        Vector2 localCenter = visualBounds.center;
         Vector3 worldCenter = boardParent != null
-            ? boardParent.TransformPoint(new Vector3(localCenterX, localCenterY, 0f))
-            : new Vector3(localCenterX, localCenterY, 0f);
+            ? boardParent.TransformPoint(new Vector3(localCenter.x, localCenter.y, 0f))
+            : new Vector3(localCenter.x, localCenter.y, 0f);
 
         _camera.transform.position = new Vector3(worldCenter.x, worldCenter.y + _cameraOffsetY, -10f);
+        _camera.orthographicSize = CalculateOrthographicSize(
+            visualBounds,
+            screenRatio,
+            _cameraOffsetY,
+            cameraPadding);
+    }
 
-        // Background frame border (_backgroundPaddingX each side) fills exactly to screen edge
-        float visibleWidth = boardWidth + _backgroundPaddingX * 2f;
-        _camera.orthographicSize = visibleWidth / (2f * screenRatio);
+    public static float CalculateOrthographicSize(
+        Rect visualBounds,
+        float aspect,
+        float cameraOffsetY,
+        Vector2 cameraPadding)
+    {
+        aspect = Mathf.Max(0.01f, aspect);
+        cameraPadding = new Vector2(Mathf.Max(0f, cameraPadding.x), Mathf.Max(0f, cameraPadding.y));
+
+        float requiredByWidth = (visualBounds.width + cameraPadding.x * 2f) / (2f * aspect);
+        float cameraLocalY = visualBounds.center.y + cameraOffsetY;
+        float requiredByHeight = Mathf.Max(
+            Mathf.Abs(visualBounds.yMax - cameraLocalY),
+            Mathf.Abs(cameraLocalY - visualBounds.yMin)) + cameraPadding.y;
+
+        return Mathf.Max(requiredByWidth, requiredByHeight);
+    }
+
+    private float ResolveCellSize(float fallbackCellSize)
+    {
+        return _visualConfig != null ? _visualConfig.CellSize : Mathf.Max(0.01f, fallbackCellSize);
+    }
+
+    private Vector2 ResolveBackgroundPadding()
+    {
+        if (_visualConfig != null)
+        {
+            return _visualConfig.BackgroundPadding;
+        }
+
+        return new Vector2(Mathf.Max(0f, _backgroundPaddingX), Mathf.Max(0f, _backgroundPaddingY));
+    }
+
+    private Vector2 ResolveCameraPadding()
+    {
+        return _visualConfig != null ? _visualConfig.CameraPadding : Vector2.zero;
+    }
+
+    private Vector2 ResolveVisualHalfExtents(ItemFactory itemFactory, float cellSize)
+    {
+        if (itemFactory != null)
+        {
+            return itemFactory.EstimateMaxVisualHalfExtents(cellSize);
+        }
+
+        return _visualConfig != null
+            ? _visualConfig.EstimateMaxVisualHalfExtents()
+            : Vector2.one * (cellSize * 0.5f);
     }
 }
 }

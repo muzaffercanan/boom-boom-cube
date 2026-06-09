@@ -22,7 +22,7 @@ public sealed class CubeTurnHandler
     private readonly TurnLogger _turnLogger;
     private readonly int _minMatchSize;
     private readonly int _rocketMatchSize;
-    private readonly float _cellSize;
+    private readonly BoardGeometry _geometry;
     private readonly Action<AudioClip> _playSound;
     private readonly AudioClip _matchSfx;
 
@@ -38,6 +38,33 @@ public sealed class CubeTurnHandler
         float cellSize,
         Action<AudioClip> playSound,
         AudioClip matchSfx)
+        : this(
+            matchSystem,
+            boardResolver,
+            boardFiller,
+            damageResolver,
+            moveCounter,
+            turnLogger,
+            minMatchSize,
+            rocketMatchSize,
+            new BoardGeometry(null, cellSize),
+            playSound,
+            matchSfx)
+    {
+    }
+
+    public CubeTurnHandler(
+        MatchSystem matchSystem,
+        BoardResolver boardResolver,
+        BoardFiller boardFiller,
+        DamageResolver damageResolver,
+        MoveCounter moveCounter,
+        TurnLogger turnLogger,
+        int minMatchSize,
+        int rocketMatchSize,
+        BoardGeometry geometry,
+        Action<AudioClip> playSound,
+        AudioClip matchSfx)
     {
         _matchSystem = matchSystem;
         _boardResolver = boardResolver;
@@ -47,7 +74,7 @@ public sealed class CubeTurnHandler
         _turnLogger = turnLogger;
         _minMatchSize = minMatchSize;
         _rocketMatchSize = rocketMatchSize;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(null, 1f);
         _playSound = playSound;
         _matchSfx = matchSfx;
     }
@@ -94,7 +121,7 @@ public sealed class CubeTurnHandler
 
     private IEnumerator AnimateCubesToCenter(List<IBoardItem> items, int targetX, int targetY)
     {
-        Vector3 targetPosition = new Vector3(targetX * _cellSize, targetY * _cellSize, 0);
+        Vector3 targetPosition = _geometry.CellToLocalPosition(targetX, targetY);
         float duration = 0.2f;
 
         foreach (IBoardItem item in items)

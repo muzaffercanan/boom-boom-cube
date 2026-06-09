@@ -16,7 +16,7 @@ public class BoardFiller
     private readonly GridSystem _gridSystem;
     private readonly ItemFactory _itemFactory;
     private readonly Transform _boardParent;
-    private readonly float _cellSize;
+    private readonly BoardGeometry _geometry;
     private readonly BoardAnimationConfig _animationConfig;
 
     private Action<int, int> _onItemClicked;
@@ -27,11 +27,21 @@ public class BoardFiller
         Transform boardParent,
         float cellSize,
         BoardAnimationConfig animationConfig = null)
+        : this(gridSystem, itemFactory, boardParent, new BoardGeometry(boardParent, cellSize), animationConfig)
+    {
+    }
+
+    public BoardFiller(
+        GridSystem gridSystem,
+        ItemFactory itemFactory,
+        Transform boardParent,
+        BoardGeometry geometry,
+        BoardAnimationConfig animationConfig = null)
     {
         _gridSystem = gridSystem;
         _itemFactory = itemFactory;
         _boardParent = boardParent;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(boardParent, 1f);
         _animationConfig = animationConfig ?? BoardAnimationConfig.Default;
     }
 
@@ -70,7 +80,7 @@ public class BoardFiller
 
     private float SpawnItemAt(int x, int y, int columnSpawnIndex)
     {
-        var item = _itemFactory.CreateItem(ItemIds.Random, _boardParent, _cellSize);
+        var item = _itemFactory.CreateItem(ItemIds.Random, _boardParent, _geometry.CellSize);
         if (item == null) return 0f;
 
         item.Init(_onItemClicked);
@@ -79,17 +89,17 @@ public class BoardFiller
         var go = item.GetGameObject();
         if (go == null) return 0f;
 
-        Vector3 targetPosition = new Vector3(x * _cellSize, y * _cellSize, 0f);
+        Vector3 targetPosition = _geometry.CellToLocalPosition(x, y);
 
-        float spawnY = (_gridSystem.Height + _animationConfig.SpawnRowsAboveBoard + columnSpawnIndex) * _cellSize;
+        float spawnY = (_gridSystem.Height + _animationConfig.SpawnRowsAboveBoard + columnSpawnIndex) * _geometry.CellSize;
         go.transform.DOKill();
-        go.transform.localPosition = new Vector3(x * _cellSize, spawnY, 0f);
+        go.transform.localPosition = new Vector3(x * _geometry.CellSize, spawnY, 0f);
 
         Vector3 targetScale = go.transform.localScale;
         go.transform.localScale = targetScale * _animationConfig.SpawnStartScale;
 
         float invSpeed = 1f / GameDebug.SpeedMultiplier;
-        float fallCells = Mathf.Max(1f, (spawnY - targetPosition.y) / _cellSize);
+        float fallCells = Mathf.Max(1f, (spawnY - targetPosition.y) / _geometry.CellSize);
         float moveDuration = _animationConfig.GetFallDuration(fallCells) * invSpeed;
         float delay = _animationConfig.GetCascadeDelay(columnSpawnIndex) * invSpeed;
         float bounceDuration = _animationConfig.LandingBounceDuration * invSpeed;
@@ -128,7 +138,7 @@ public class BoardFiller
         bool isHorizontal = GameRng.Shared.Value() < 0.5f;
         string rocketId = isHorizontal ? ItemIds.HorizontalRocket : ItemIds.VerticalRocket;
 
-        var rocket = _itemFactory.CreateItem(rocketId, _boardParent, _cellSize);
+        var rocket = _itemFactory.CreateItem(rocketId, _boardParent, _geometry.CellSize);
         if (rocket == null) return;
 
         rocket.Init(_onItemClicked);
@@ -141,7 +151,7 @@ public class BoardFiller
             return;
         }
 
-        go.transform.localPosition = new Vector3(x * _cellSize, y * _cellSize, 0);
+        go.transform.localPosition = _geometry.CellToLocalPosition(x, y);
     }
 }
 }

@@ -21,10 +21,16 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
 
     private SpriteRenderer[] _renderers;
     private int[] _baseSortingOrders;
+    private int _sortingBias;
 
     protected Action<int, int> _onClickCallback;
 
     protected virtual void Awake()
+    {
+        EnsureSortingCache();
+    }
+
+    private void EnsureSortingCache()
     {
         _renderers = GetComponentsInChildren<SpriteRenderer>(true);
         _baseSortingOrders = new int[_renderers.Length];
@@ -45,13 +51,24 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
         ApplySortingOrder(y);
     }
 
+    public void SetSortingBias(int sortingBias)
+    {
+        _sortingBias = sortingBias;
+        ApplySortingOrder(Y);
+    }
+
     private void ApplySortingOrder(int y)
     {
+        if (_renderers == null || _baseSortingOrders == null || _renderers.Length != _baseSortingOrders.Length)
+        {
+            EnsureSortingCache();
+        }
+
         if (_renderers == null) return;
         for (int i = 0; i < _renderers.Length; i++)
         {
             if (_renderers[i] != null)
-                _renderers[i].sortingOrder = _baseSortingOrders[i] + y * 10;
+                _renderers[i].sortingOrder = _baseSortingOrders[i] + y * 10 + _sortingBias;
         }
     }
 
@@ -131,7 +148,8 @@ public abstract class AbstractBoardItem : MonoBehaviour, IBoardItem, IPointerCli
 
     public virtual void OnPointerClick(PointerEventData eventData)
     {
-        _onClickCallback?.Invoke(X, Y);
+        // Gameplay input is routed by BoardInputRouter from screen/world coordinates.
+        // Keep the interface on existing prefabs, but do not let collider hits choose cells.
     }
     
     public virtual void PlayDestroyEffect(DamageType damageType)

@@ -17,7 +17,7 @@ public class RocketSystem
     private readonly GridSystem _gridSystem;
     private readonly ItemFactory _itemFactory;
     private readonly Transform _boardParent;
-    private readonly float _cellSize;
+    private readonly BoardGeometry _geometry;
     private readonly MonoBehaviour _coroutineRunner;
     private readonly AudioClip _rocketSfx;
     private readonly Dictionary<string, ObjectPool<GameObject>> _projectilePools = new Dictionary<string, ObjectPool<GameObject>>();
@@ -29,11 +29,16 @@ public class RocketSystem
     public int ActiveProjectileCount => _activeProjectileCount;
 
     public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, float cellSize, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null)
+        : this(grid, factory, boardParent, new BoardGeometry(boardParent, cellSize), runner, onDamageRequest, rocketSfx)
+    {
+    }
+
+    public RocketSystem(GridSystem grid, ItemFactory factory, Transform boardParent, BoardGeometry geometry, MonoBehaviour runner, System.Action<Vector2Int> onDamageRequest, AudioClip rocketSfx = null)
     {
         _gridSystem = grid;
         _itemFactory = factory;
         _boardParent = boardParent;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(boardParent, 1f);
         _coroutineRunner = runner;
         _onDamageRequest = onDamageRequest;
         _rocketSfx = rocketSfx;
@@ -173,8 +178,7 @@ public class RocketSystem
         }
 
 
-        float worldY = startY * _cellSize;
-        projectileObj.transform.localPosition = new Vector3(startX * _cellSize, worldY, -1f);
+        projectileObj.transform.localPosition = _geometry.CellToLocalPosition(startX, startY, -1f);
 
         var projectileComp = projectileObj.GetComponent<RocketProjectile>();
         if (projectileComp == null) projectileComp = projectileObj.AddComponent<RocketProjectile>();
@@ -182,7 +186,7 @@ public class RocketSystem
         projectileComp.SetPoolKey(poolKey);
         _activeProjectileCount++;
         _activeProjectiles.Add(projectileComp);
-        projectileComp.Init(direction, startX, startY, _cellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange, ReleaseTrackedProjectile);
+        projectileComp.Init(direction, startX, startY, _geometry.CellSize, _gridSystem, OnProjectileHitCell, _rocketSfx, maxRange, ReleaseTrackedProjectile);
     }
 
     public IEnumerator WaitForProjectilesToComplete(float timeoutSeconds = 2.5f)

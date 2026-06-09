@@ -2242,40 +2242,67 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0083505cd3160f4e98b8642197d6a66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _references:
+    ItemFactory: {fileID: 11400000, guid: e9fc213c7de5eac479d7f45bcc723433, type: 2}
+    VisualConfig: {fileID: 11400000, guid: e52f1626b9ce7cf4d91d5ef5557cfdb5, type: 2}
+    BoardParent: {fileID: 914865356}
+    BoardSetup: {fileID: 2143901852}
+    LevelButton: {fileID: 351518056}
+    CellSize: 1
+  _levelConfig:
+    LevelJson: {fileID: 0}
+    EnableLevelLoaderDebugLogs: 0
+  _rulesConfig:
+    MinMatchSize: 2
+    RocketMatchSize: 4
+    EnableNoMoveShuffle: 1
+    ShuffleMaxAttempts: 20
+    ShuffleVisualDuration: 0.25
+    BoardAnimation:
+      FallMoveDuration: 0.14
+      GravityStepDelay: 0.05
+      PostFillGravityStepDelay: 0.05
+      LandingBounceHeight: 0.08
+      LandingBounceDuration: 0.1
+      SpawnRowsAboveBoard: 1
+      SpawnStartScale: 0.9
+  _sessionConfig:
+    UseSessionSeedOverride: 0
+    SessionSeedOverride: 0
+    EnableSessionLog: 1
+    WriteSessionLogToConsole: 0
+    EnableTurnSnapshots: 0
+  _audioConfig:
+    BackgroundMusic: {fileID: 8300000, guid: 132ab4c468f43224eb7cdecac02787cc, type: 3}
+    MatchSfx: {fileID: 8300000, guid: 7e26c9daf4c32483b9c2790e662d3f1b, type: 3}
+    TapSfx: {fileID: 8300000, guid: 2c5292ba5cf254919a6b9e2b18e04f49, type: 3}
+    RocketSfx: {fileID: 8300000, guid: 08979fc0ca5fcca4388911e112dc4b32, type: 3}
+    WinSfx: {fileID: 8300000, guid: 2667a0a008b044e218b63df62e2be749, type: 3}
+    LoseSfx: {fileID: 8300000, guid: 4b4dd7245f6104c8c8eb07ccf6b386ed, type: 3}
+  _groupedConfigInitialized: 1
   _itemFactory: {fileID: 11400000, guid: e9fc213c7de5eac479d7f45bcc723433, type: 2}
   _boardParent: {fileID: 914865356}
   _cellSize: 1
   _boardSetup: {fileID: 2143901852}
   _levelButton: {fileID: 351518056}
   _levelJson: {fileID: 0}
+  _enableLevelLoaderDebugLogs: 0
   _minMatchSize: 2
   _rocketMatchSize: 4
+  _enableNoMoveShuffle: 1
+  _shuffleMaxAttempts: 20
+  _shuffleVisualDuration: 0.25
+  _useSessionSeedOverride: 0
+  _sessionSeedOverride: 0
+  _enableSessionLog: 1
+  _writeSessionLogToConsole: 0
+  _enableTurnSnapshots: 0
   _backgroundMusic: {fileID: 8300000, guid: 132ab4c468f43224eb7cdecac02787cc, type: 3}
   _matchSfx: {fileID: 8300000, guid: 7e26c9daf4c32483b9c2790e662d3f1b, type: 3}
   _tapSfx: {fileID: 8300000, guid: 2c5292ba5cf254919a6b9e2b18e04f49, type: 3}
   _rocketSfx: {fileID: 8300000, guid: 08979fc0ca5fcca4388911e112dc4b32, type: 3}
   _winSfx: {fileID: 8300000, guid: 2667a0a008b044e218b63df62e2be749, type: 3}
   _loseSfx: {fileID: 8300000, guid: 4b4dd7245f6104c8c8eb07ccf6b386ed, type: 3}
---- !u!114 &2143901852
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2143901848}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 786b43f2bf8ff3e4db2bd70a93374aad, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _gridBackgroundRenderer: {fileID: 889404347}
-  _backgroundPaddingX: 0.1
-  _backgroundPaddingY: 0.1
-  _camera: {fileID: 1927722052}
-  _cameraPadding: 0.15
-  _verticalCameraPadding: 1.1
-  _targetBoardViewportWidth: 0.97
-  _cameraOffsetY: 2
 --- !u!4 &2143901850
 Transform:
   m_ObjectHideFlags: 0
@@ -2315,6 +2342,24 @@ MonoBehaviour:
   _loseTryAgainButton: {fileID: 687515453}
   _loseMainMenuButton: {fileID: 0}
   _loseCloseButton: {fileID: 1945426105}
+--- !u!114 &2143901852
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2143901848}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 786b43f2bf8ff3e4db2bd70a93374aad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _gridBackgroundRenderer: {fileID: 889404347}
+  _backgroundPaddingX: 0.1
+  _backgroundPaddingY: 0.1
+  _visualConfig: {fileID: 11400000, guid: e52f1626b9ce7cf4d91d5ef5557cfdb5, type: 2}
+  _camera: {fileID: 1927722052}
+  _cameraOffsetY: 2
 --- !u!224 &1647088716182927241 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 1187069512400005841, guid: ac691bf3eb5901d4298f6349d601ef6f, type: 3}

@@ -73,6 +73,35 @@ public class GameManagerPlayModeSmokeTests
     }
 
     [UnityTest]
+    public IEnumerator GameManager_ScreenPositionInputResolvesTurnAndDecreasesMoves()
+    {
+        GameManager manager = CreateGameManager();
+        yield return WaitForLoadedBoard(manager);
+
+        GridSystem grid = GetPrivateField<GridSystem>(manager, "_gridSystem");
+        NoMoveScanner scanner = new NoMoveScanner(grid, 2);
+        Assert.IsTrue(scanner.TryFindPlayableMove(out PlayableMove move));
+
+        BoardSceneReferences references = GetPrivateField<BoardSceneReferences>(manager, "_references");
+        BoardInputRouter router = GetPrivateField<BoardInputRouter>(manager, "_boardInputRouter");
+        Camera camera = Camera.main;
+        Assert.IsNotNull(camera);
+
+        float cellSize = references.ResolveCellSize();
+        Vector3 worldPosition = references.BoardParent.TransformPoint(new Vector3(move.X * cellSize, move.Y * cellSize, 0f));
+        Vector3 screenPosition = camera.WorldToScreenPoint(worldPosition);
+
+        int movesBefore = manager.RemainingMoves;
+        Assert.IsTrue(router.TryHandleScreenPosition(screenPosition, camera));
+
+        Assert.IsTrue(manager.IsProcessingTurn);
+        yield return new WaitUntil(() => !manager.IsProcessingTurn);
+
+        Assert.AreEqual(movesBefore - 1, manager.RemainingMoves);
+        Assert.GreaterOrEqual(manager.SessionLog.Turns.Count, 1);
+    }
+
+    [UnityTest]
     public IEnumerator GameManager_InputLockClosesAndReopensAroundTurn()
     {
         GameManager manager = CreateGameManager();
@@ -165,6 +194,13 @@ public class GameManagerPlayModeSmokeTests
 
         GameObject levelButton = new GameObject("LevelButton");
         levelButton.transform.SetParent(root.transform);
+
+        Camera camera = new GameObject("InputCamera").AddComponent<Camera>();
+        camera.transform.SetParent(root.transform);
+        camera.transform.position = new Vector3(1f, 0f, -10f);
+        camera.orthographic = true;
+        camera.orthographicSize = 5f;
+        camera.tag = "MainCamera";
 
         ItemFactory factory = CreateRuntimeFactory(root.transform);
 

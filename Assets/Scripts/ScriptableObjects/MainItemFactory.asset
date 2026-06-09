@@ -52,4 +52,5 @@ MonoBehaviour:
   - itemId: 12
     id: rocket_h_part_right
     prefab: {fileID: 3951418157652007565, guid: 53dc49c59db024845bf480bb85c79b8b, type: 3}
+  _visualConfig: {fileID: 11400000, guid: e52f1626b9ce7cf4d91d5ef5557cfdb5, type: 2}
   _itemScale: 0.72

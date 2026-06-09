@@ -24,11 +24,15 @@ public class ItemFactory : ScriptableObject
     public List<ItemPrefabMap> mappings;
 
     [Header("Settings")]
-    [SerializeField] private float _itemScale = 1.0f;
+    [SerializeField] private BoardVisualConfig _visualConfig;
+    [SerializeField, HideInInspector] private float _itemScale = 1.0f;
 
     private static readonly ItemId[] RandomColors = { ItemId.Red, ItemId.Green, ItemId.Blue, ItemId.Yellow };
     private readonly Dictionary<ItemId, GameObject> _prefabCache = new Dictionary<ItemId, GameObject>();
     private bool _cacheDirty = true;
+
+    public BoardVisualConfig VisualConfig => _visualConfig;
+    public float LegacyItemScale => Mathf.Max(0.01f, _itemScale);
 
     private void OnEnable()
     {
@@ -96,7 +100,7 @@ public class ItemFactory : ScriptableObject
         if (prefab == null) return null;
 
         GameObject instance = Instantiate(prefab, parent);
-        instance.transform.localScale = Vector3.one * (_itemScale * cellSize);
+        ApplyVisualSettings(instance, itemId, cellSize);
         var boardItem = instance.GetComponent<IBoardItem>();
 
         if (boardItem is CubeItem cubeItem)
@@ -111,6 +115,194 @@ public class ItemFactory : ScriptableObject
         }
 
         return boardItem;
+    }
+
+    public void SetVisualConfig(BoardVisualConfig visualConfig)
+    {
+        _visualConfig = visualConfig;
+    }
+
+    public ItemVisualSettings ResolveVisualSettings(ItemId itemId)
+    {
+        return _visualConfig != null
+            ? _visualConfig.Resolve(itemId)
+            : ItemVisualSettings.Default(LegacyItemScale, Vector2.zero);
+    }
+
+    public void SetDefaultItemScale(float scale)
+    {
+        scale = Mathf.Clamp(scale, 0.2f, 1.5f);
+        if (_visualConfig != null)
+        {
+            _visualConfig.DefaultItemScale = scale;
+        }
+        else
+        {
+            _itemScale = scale;
+        }
+    }
+
+    public float GetDefaultItemScale()
+    {
+        return _visualConfig != null ? _visualConfig.DefaultItemScale : LegacyItemScale;
+    }
+
+    public float GetCellSize(float fallbackCellSize)
+    {
+        return _visualConfig != null ? _visualConfig.CellSize : Mathf.Max(0.01f, fallbackCellSize);
+    }
+
+    public void ApplyVisualSettings(GameObject instance, ItemId itemId, float cellSize)
+    {
+        if (instance == null) return;
+
+        ItemVisualSettings settings = ResolveVisualSettings(itemId);
+        float safeCellSize = Mathf.Max(0.01f, cellSize);
+        float rootScale = settings.VisualScale * safeCellSize;
+        instance.transform.localScale = Vector3.one * rootScale;
+
+        if (instance.TryGetComponent(out AbstractBoardItem boardItem))
+        {
+            boardItem.SetSortingBias(settings.VisualSortBias);
+        }
+
+        ApplyVisualOffset(instance, settings.VisualOffset, rootScale);
+        ConfigureColliders(instance, settings, rootScale, safeCellSize);
+    }
+
+    public Vector2 EstimateMaxVisualHalfExtents(float cellSize)
+    {
+        float safeCellSize = Mathf.Max(0.01f, cellSize);
+        Vector2 max = Vector2.one * (safeCellSize * 0.5f);
+
+        EnsureCache();
+
+        foreach (KeyValuePair<ItemId, GameObject> pair in _prefabCache)
+        {
+            if (pair.Value == null) continue;
+
+            ItemVisualSettings settings = ResolveVisualSettings(pair.Key);
+            Bounds localBounds = CalculatePrefabLocalRendererBounds(pair.Value);
+            Vector2 half = localBounds.size.sqrMagnitude > 0f
+                ? new Vector2(localBounds.extents.x, localBounds.extents.y) * settings.VisualScale * safeCellSize
+                : Vector2.one * (settings.VisualScale * safeCellSize * 0.5f);
+
+            half += new Vector2(Mathf.Abs(settings.VisualOffset.x), Mathf.Abs(settings.VisualOffset.y));
+            max = Vector2.Max(max, half);
+        }
+
+        if (_visualConfig != null)
+        {
+            max = Vector2.Max(max, _visualConfig.EstimateMaxVisualHalfExtents());
+        }
+
+        return max;
+    }
+
+    private static void ApplyVisualOffset(GameObject instance, Vector2 visualOffset, float rootScale)
+    {
+        if (visualOffset == Vector2.zero) return;
+
+        Transform visual = instance.transform.Find("Visual");
+        if (visual == null)
+        {
+            return;
+        }
+
+        float safeRootScale = Mathf.Max(0.01f, rootScale);
+        visual.localPosition = new Vector3(
+            visualOffset.x / safeRootScale,
+            visualOffset.y / safeRootScale,
+            visual.localPosition.z);
+    }
+
+    private static void ConfigureColliders(
+        GameObject instance,
+        ItemVisualSettings settings,
+        float rootScale,
+        float cellSize)
+    {
+        if (!settings.ConfigureCollider) return;
+
+        BoxCollider2D[] colliders = instance.GetComponentsInChildren<BoxCollider2D>(true);
+        if (colliders == null || colliders.Length == 0) return;
+
+        float safeRootScale = Mathf.Max(0.01f, rootScale);
+        Vector2 desiredWorldSize = Vector2.Min(settings.ColliderSizeInCells, Vector2.one) * cellSize;
+        Vector2 desiredWorldOffset = settings.ColliderOffsetInCells * cellSize;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            BoxCollider2D collider = colliders[i];
+            if (collider == null) continue;
+
+            collider.size = new Vector2(
+                desiredWorldSize.x / safeRootScale,
+                desiredWorldSize.y / safeRootScale);
+            collider.offset = new Vector2(
+                desiredWorldOffset.x / safeRootScale,
+                desiredWorldOffset.y / safeRootScale);
+        }
+    }
+
+    private static Bounds CalculatePrefabLocalRendererBounds(GameObject prefab)
+    {
+        SpriteRenderer[] renderers = prefab.GetComponentsInChildren<SpriteRenderer>(true);
+        bool hasBounds = false;
+        Bounds combined = new Bounds(Vector3.zero, Vector3.zero);
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer renderer = renderers[i];
+            if (renderer == null || renderer.sprite == null) continue;
+
+            Bounds spriteBounds = renderer.sprite.bounds;
+            Matrix4x4 matrix = prefab.transform.worldToLocalMatrix * renderer.transform.localToWorldMatrix;
+            Bounds rendererBounds = TransformBounds(spriteBounds, matrix);
+
+            if (!hasBounds)
+            {
+                combined = rendererBounds;
+                hasBounds = true;
+            }
+            else
+            {
+                combined.Encapsulate(rendererBounds);
+            }
+        }
+
+        return hasBounds ? combined : new Bounds(Vector3.zero, Vector3.zero);
+    }
+
+    private static Bounds TransformBounds(Bounds bounds, Matrix4x4 matrix)
+    {
+        Vector3 center = bounds.center;
+        Vector3 extents = bounds.extents;
+        bool initialized = false;
+        Bounds transformed = new Bounds();
+
+        for (int x = -1; x <= 1; x += 2)
+        {
+            for (int y = -1; y <= 1; y += 2)
+            {
+                for (int z = -1; z <= 1; z += 2)
+                {
+                    Vector3 corner = center + Vector3.Scale(extents, new Vector3(x, y, z));
+                    Vector3 point = matrix.MultiplyPoint3x4(corner);
+                    if (!initialized)
+                    {
+                        transformed = new Bounds(point, Vector3.zero);
+                        initialized = true;
+                    }
+                    else
+                    {
+                        transformed.Encapsulate(point);
+                    }
+                }
+            }
+        }
+
+        return transformed;
     }
 
     private void EnsureCache()

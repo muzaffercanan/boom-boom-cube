@@ -14,7 +14,7 @@ public sealed class ShuffleSystem
 {
     private readonly GridSystem _gridSystem;
     private readonly int _minGroupSize;
-    private readonly float _cellSize;
+    private readonly BoardGeometry _geometry;
     private readonly GameRng _rng;
     private readonly int _maxAttempts;
 
@@ -24,10 +24,20 @@ public sealed class ShuffleSystem
         float cellSize = 1f,
         GameRng rng = null,
         int maxAttempts = 20)
+        : this(gridSystem, minGroupSize, new BoardGeometry(null, cellSize), rng, maxAttempts)
+    {
+    }
+
+    public ShuffleSystem(
+        GridSystem gridSystem,
+        int minGroupSize,
+        BoardGeometry geometry,
+        GameRng rng = null,
+        int maxAttempts = 20)
     {
         _gridSystem = gridSystem;
         _minGroupSize = minGroupSize;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(null, 1f);
         _rng = rng ?? GameRng.Shared;
         _maxAttempts = Mathf.Max(1, maxAttempts);
     }
@@ -245,7 +255,7 @@ public sealed class ShuffleSystem
         GameObject go = item.GetGameObject();
         if (go == null) return;
 
-        go.transform.localPosition = new Vector3(position.x * _cellSize, position.y * _cellSize, 0f);
+        go.transform.localPosition = _geometry.CellToLocalPosition(position.x, position.y);
     }
 
     private static bool IsNormalCube(IBoardItem item)

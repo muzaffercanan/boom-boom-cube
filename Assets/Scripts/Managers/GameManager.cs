@@ -83,7 +83,8 @@ public class GameManager : MonoBehaviour
 
     public GridSystem DebugGrid => _gridSystem;
     public Transform DebugBoardParent => _references.BoardParent;
-    public float DebugCellSize => _references.CellSize;
+    public float DebugCellSize => _references.ResolveCellSize();
+    public float DebugItemScale => _references.ItemFactory != null ? _references.ItemFactory.GetDefaultItemScale() : GameDebug.ItemScale;
     public int DebugCurrentLevel => _levelSessionController?.CurrentLevel?.level_number ?? 0;
     public bool DebugIsGameOver => _gameStateController?.IsGameOver ?? false;
 
@@ -95,6 +96,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         SyncGroupedConfigFromLegacy();
+        SyncVisualConfig();
         EnsureServices();
         ParticlePool.Clear();
         _audioService.PlayMusic(_audioConfig.BackgroundMusic);
@@ -103,6 +105,11 @@ public class GameManager : MonoBehaviour
         var debugGo = new GameObject("[DebugPanel]");
         var panel = debugGo.AddComponent<GameDebugPanel>();
         panel.SetGameManager(this);
+    }
+
+    private void Update()
+    {
+        HandlePointerInput();
     }
 
     private IEnumerator InitNextFrame()
@@ -115,11 +122,14 @@ public class GameManager : MonoBehaviour
     private void InitializeSystems()
     {
         EnsureServices();
+        SyncVisualConfig();
+        float cellSize = _references.ResolveCellSize();
         GameplaySystems systems = new GameplaySystemFactory().Create(new GameplaySystemFactoryConfig
         {
             ItemFactory = _references.ItemFactory,
+            VisualConfig = _references.ResolveVisualConfig(),
             BoardParent = _references.BoardParent,
-            CellSize = _references.CellSize,
+            CellSize = cellSize,
             LevelJson = _levelConfig.LevelJson,
             EnableLevelLoaderDebugLogs = _levelConfig.EnableLevelLoaderDebugLogs,
             MinMatchSize = _rulesConfig.MinMatchSize,
@@ -196,10 +206,15 @@ public class GameManager : MonoBehaviour
         _turnProcessor.ResetTurnState();
         _turnProcessor.SetRemainingMoves(levelData.move_count);
 
-        _levelLoader.LoadLevel(_gridSystem, levelData, OnItemClicked);
+        _levelLoader.LoadLevel(_gridSystem, levelData, null);
         if (_references.BoardSetup != null)
         {
-            _references.BoardSetup.SetupForLevel(levelData, _references.BoardParent, _references.CellSize);
+            _references.BoardSetup.SetupForLevel(
+                levelData,
+                _references.BoardParent,
+                _references.ResolveCellSize(),
+                _references.ResolveVisualConfig(),
+                _references.ItemFactory);
         }
 
         StartCoroutine(UpdateHintsNextFrame());
@@ -253,7 +268,7 @@ public class GameManager : MonoBehaviour
         _shuffleSystem = new ShuffleSystem(
             _gridSystem,
             _rulesConfig.MinMatchSize,
-            _references.CellSize,
+            new BoardGeometry(_references.BoardParent, _references.ResolveCellSize()),
             GameRng.Shared,
             _rulesConfig.ShuffleMaxAttempts);
         _turnEndResolver = new TurnEndResolver(_noMoveScanner, _shuffleSystem);
@@ -322,21 +337,40 @@ public class GameManager : MonoBehaviour
     public void DebugApplyCellSize(float newCellSize)
     {
         if (IsProcessingTurn) return;
-        _references.CellSize = Mathf.Max(0.2f, newCellSize);
+        float cellSize = Mathf.Max(0.2f, newCellSize);
+        BoardVisualConfig visualConfig = _references.ResolveVisualConfig();
+        if (visualConfig != null)
+        {
+            visualConfig.CellSize = cellSize;
+        }
+        _references.CellSize = cellSize;
         InitializeSystems();
         StartCoroutine(LoadCurrentLevelRoutine());
     }
 
     public void DebugSetItemScale(float scale)
     {
-        if (_gridSystem == null) return;
+        if (_gridSystem == null || _references.ItemFactory == null) return;
         scale = Mathf.Clamp(scale, 0.2f, 1.5f);
+        GameDebug.ItemScale = scale;
+        _references.ItemFactory.SetDefaultItemScale(scale);
+        float cellSize = _references.ResolveCellSize();
         for (int x = 0; x < _gridSystem.Width; x++)
             for (int y = 0; y < _gridSystem.Height; y++)
             {
                 IBoardItem item = _gridSystem.GetItem(x, y);
                 GameObject go = item?.GetGameObject();
-                if (go != null) go.transform.localScale = Vector3.one * scale;
+                if (go == null) continue;
+
+                ItemId itemId = ResolveItemId(item);
+                if (itemId != ItemId.Unknown)
+                {
+                    _references.ItemFactory.ApplyVisualSettings(go, itemId, cellSize);
+                }
+                else
+                {
+                    go.transform.localScale = Vector3.one * (scale * cellSize);
+                }
             }
     }
 
@@ -420,6 +454,71 @@ public class GameManager : MonoBehaviour
             _enableTurnSnapshots);
         _audioConfig.ApplyLegacy(_backgroundMusic, _matchSfx, _tapSfx, _rocketSfx, _winSfx, _loseSfx);
         _groupedConfigInitialized = true;
+    }
+
+    private void SyncVisualConfig()
+    {
+        BoardVisualConfig visualConfig = _references.ResolveVisualConfig();
+        if (_references.ItemFactory != null && visualConfig != null)
+        {
+            _references.ItemFactory.SetVisualConfig(visualConfig);
+        }
+
+        if (_references.BoardSetup != null && visualConfig != null)
+        {
+            _references.BoardSetup.SetVisualConfig(visualConfig);
+        }
+
+        if (_references.ItemFactory != null)
+        {
+            GameDebug.ItemScale = _references.ItemFactory.GetDefaultItemScale();
+        }
+    }
+
+    private void HandlePointerInput()
+    {
+        if (_boardInputRouter == null || _references.BoardParent == null || !_references.BoardParent.gameObject.activeInHierarchy)
+        {
+            return;
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            _boardInputRouter.TryHandleScreenPosition(Input.mousePosition, Camera.main);
+        }
+
+        for (int i = 0; i < Input.touchCount; i++)
+        {
+            Touch touch = Input.GetTouch(i);
+            if (touch.phase == TouchPhase.Ended)
+            {
+                _boardInputRouter.TryHandleScreenPosition(touch.position, Camera.main);
+            }
+        }
+    }
+
+    private static ItemId ResolveItemId(IBoardItem item)
+    {
+        if (item is CubeItem && item is IMatchable matchable)
+        {
+            switch (matchable.GetColor())
+            {
+                case CubeColor.Red: return ItemId.Red;
+                case CubeColor.Green: return ItemId.Green;
+                case CubeColor.Blue: return ItemId.Blue;
+                case CubeColor.Yellow: return ItemId.Yellow;
+            }
+        }
+
+        if (item is RocketItem rocket)
+        {
+            return rocket.IsHorizontal ? ItemId.HorizontalRocket : ItemId.VerticalRocket;
+        }
+
+        if (item is BoxItem) return ItemId.Box;
+        if (item is StoneItem) return ItemId.Stone;
+        if (item is VaseItem) return ItemId.Vase;
+        return ItemId.Unknown;
     }
 
     private void EnsureServices()

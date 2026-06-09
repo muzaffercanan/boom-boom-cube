@@ -12,13 +12,18 @@ namespace DreamGames.Board.Systems
 public class GravitySystem
 {
     private readonly GridSystem _grid;
-    private readonly float _cellSize;
+    private readonly BoardGeometry _geometry;
     private readonly BoardAnimationConfig _animationConfig;
 
     public GravitySystem(GridSystem grid, float cellSize, BoardAnimationConfig animationConfig = null)
+        : this(grid, new BoardGeometry(null, cellSize), animationConfig)
+    {
+    }
+
+    public GravitySystem(GridSystem grid, BoardGeometry geometry, BoardAnimationConfig animationConfig = null)
     {
         _grid = grid;
-        _cellSize = cellSize;
+        _geometry = geometry ?? new BoardGeometry(null, 1f);
         _animationConfig = animationConfig ?? BoardAnimationConfig.Default;
     }
 
@@ -79,7 +84,7 @@ public class GravitySystem
 
                 if (item is AbstractBoardItem abi)
                 {
-                    Vector3 targetPos = new Vector3(x * _cellSize, writeY * _cellSize, 0f);
+                    Vector3 targetPos = _geometry.CellToLocalPosition(x, writeY);
                     abi.SetPosition(x, writeY);
                     abi.FallToPositionDelayed(
                         targetPos,
@@ -92,7 +97,7 @@ public class GravitySystem
                 {
                     GameObject go = item.GetGameObject();
                     if (go != null)
-                        go.transform.localPosition = new Vector3(x * _cellSize, writeY * _cellSize, 0f);
+                        go.transform.localPosition = _geometry.CellToLocalPosition(x, writeY);
                 }
 
                 float totalTime = fallDelay + fallDuration + bounceDuration;
@@ -133,7 +138,7 @@ public class GravitySystem
                 _grid.SetItem(x, y, null);
                 _grid.SetItem(x, writeY, item);
 
-                Vector3 targetPos = new Vector3(x * _cellSize, writeY * _cellSize, 0f);
+                Vector3 targetPos = _geometry.CellToLocalPosition(x, writeY);
                 if (item is AbstractBoardItem abi)
                 {
                     abi.SetPosition(x, writeY);

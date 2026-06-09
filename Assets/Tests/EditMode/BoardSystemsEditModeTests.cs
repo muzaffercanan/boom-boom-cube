@@ -31,6 +31,128 @@ public class BoardSystemsEditModeTests
     }
 
     [Test]
+    public void BoardGeometry_MapsCellsAndLocalPositionsUsingSquareCellBounds()
+    {
+        BoardGeometry geometry = new BoardGeometry(null, 1f);
+
+        Assert.AreEqual(new Vector3(2f, 3f, 0f), geometry.CellToLocalPosition(2, 3));
+        Assert.IsTrue(geometry.TryLocalPositionToCell(new Vector2(0.49f, 0f), 3, 3, out Vector2Int leftCell));
+        Assert.AreEqual(new Vector2Int(0, 0), leftCell);
+        Assert.IsTrue(geometry.TryLocalPositionToCell(new Vector2(0.51f, 0f), 3, 3, out Vector2Int rightCell));
+        Assert.AreEqual(new Vector2Int(1, 0), rightCell);
+        Assert.IsFalse(geometry.TryLocalPositionToCell(new Vector2(-0.51f, 0f), 3, 3, out _));
+    }
+
+    [Test]
+    public void BoardInputRouter_ResolvesClickedCellFromLocalPosition()
+    {
+        GridSystem grid = new GridSystem();
+        grid.Initialize(2, 1);
+        grid.SetItem(0, 0, new TestMatchableItem(CubeColor.Red));
+        grid.SetItem(1, 0, new TestMatchableItem(CubeColor.Blue));
+
+        BoardInputRouter router = new BoardInputRouter(
+            grid,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new BoardGeometry(null, 1f));
+
+        Assert.IsTrue(router.TryResolveLocalPosition(new Vector2(0.6f, 0f), out Vector2Int cell));
+        Assert.AreEqual(new Vector2Int(1, 0), cell);
+    }
+
+    [Test]
+    public void AbstractBoardItem_OnPointerClick_DoesNotInvokeLegacyGameplayCallback()
+    {
+        GameObject gameObject = new GameObject("PointerIgnoredCube");
+        try
+        {
+            CubeItem cube = gameObject.AddComponent<CubeItem>();
+            bool clicked = false;
+            cube.Init((_, _) => clicked = true);
+
+            cube.OnPointerClick(null);
+
+            Assert.IsFalse(clicked);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(gameObject);
+        }
+    }
+
+    [Test]
+    public void AbstractBoardItem_SortingOrderIncreasesWithYAndAppliesBias()
+    {
+        GameObject gameObject = new GameObject("SortingCube");
+        try
+        {
+            SpriteRenderer renderer = gameObject.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = 5;
+            CubeItem cube = gameObject.AddComponent<CubeItem>();
+
+            cube.SetSortingBias(3);
+            cube.SetPosition(0, 2);
+
+            Assert.AreEqual(28, renderer.sortingOrder);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(gameObject);
+        }
+    }
+
+    [Test]
+    public void ItemFactory_AppliesVisualScaleAndConstrainsColliderToLogicalCell()
+    {
+        ItemFactory factory = ScriptableObject.CreateInstance<ItemFactory>();
+        GameObject prefab = CreateRuntimeCubePrefab("ColliderCubePrefab");
+        prefab.AddComponent<BoxCollider2D>().size = Vector2.one * 2f;
+
+        try
+        {
+            factory.mappings = new List<ItemFactory.ItemPrefabMap>
+            {
+                CreateMapping(ItemId.Red, ItemIds.Red, prefab)
+            };
+            factory.SetDefaultItemScale(0.72f);
+            SetPrivateField(factory, "_cacheDirty", true);
+
+            IBoardItem item = factory.CreateItem(ItemId.Red, null, 1f);
+            GameObject instance = item.GetGameObject();
+            BoxCollider2D collider = instance.GetComponent<BoxCollider2D>();
+
+            Assert.AreEqual(0.72f, instance.transform.localScale.x, 0.0001f);
+            Assert.LessOrEqual(collider.size.x * instance.transform.localScale.x, 1.0001f);
+            Assert.LessOrEqual(collider.size.y * instance.transform.localScale.y, 1.0001f);
+
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(factory);
+            UnityEngine.Object.DestroyImmediate(prefab);
+        }
+    }
+
+    [Test]
+    public void BoardSetupController_CalculatesCameraSizeFromWidthHeightAndOffset()
+    {
+        Rect visualBounds = Rect.MinMaxRect(-0.5f, -0.5f, 8.5f, 12.5f);
+
+        float size = BoardSetupController.CalculateOrthographicSize(
+            visualBounds,
+            aspect: 3f,
+            cameraOffsetY: 2f,
+            cameraPadding: new Vector2(0.15f, 0.15f));
+
+        Assert.AreEqual(8.65f, size, 0.0001f);
+    }
+
+    [Test]
     public void MatchSystem_FindMatches_ReturnsConnectedSameColorItemsOnly()
     {
         GridSystem grid = new GridSystem();

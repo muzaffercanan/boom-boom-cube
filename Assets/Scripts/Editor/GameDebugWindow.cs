@@ -69,7 +69,7 @@ public class GameDebugWindow : EditorWindow
         Section("LEVEL", DrawLevel);
         Section($"BOARD BOYUTU  <color=#666>{_gm.DebugGrid?.Width ?? 0} × {_gm.DebugGrid?.Height ?? 0}</color>", DrawBoardSize);
         Section($"CELL SIZE  <color=#666>{_gm.DebugCellSize:F2}</color>", DrawCellSize);
-        Section($"ITEM ARALIK  <color=#666>{GameDebug.ItemScale:F2}</color>", DrawItemScale);
+        Section($"ITEM ARALIK  <color=#666>{_gm.DebugItemScale:F2}</color>", DrawItemScale);
         Section($"ANİMASYON HIZI  <color=#666>×{GameDebug.SpeedMultiplier:F2}</color>", DrawAnimSpeed);
         Section($"ROKET HIZI  <color=#666>{GameDebug.RocketSpeed:F1}</color>", DrawRocketSpeed);
         Section("GOALS  /  SHUFFLE", DrawActions);
@@ -163,13 +163,14 @@ public class GameDebugWindow : EditorWindow
 
     private void DrawItemScale()
     {
+        float itemScale = _gm.DebugItemScale;
         Row(() =>
         {
-            if (SmBtn("−0.05")) Apply(ref GameDebug.ItemScale, -0.05f);
-            if (SmBtn("−0.01")) Apply(ref GameDebug.ItemScale, -0.01f);
-            Val(GameDebug.ItemScale.ToString("F2"), 36f);
-            if (SmBtn("+0.01")) Apply(ref GameDebug.ItemScale, +0.01f);
-            if (SmBtn("+0.05")) Apply(ref GameDebug.ItemScale, +0.05f);
+            if (SmBtn("−0.05")) ApplyItemScale(itemScale - 0.05f);
+            if (SmBtn("−0.01")) ApplyItemScale(itemScale - 0.01f);
+            Val(itemScale.ToString("F2"), 36f);
+            if (SmBtn("+0.01")) ApplyItemScale(itemScale + 0.01f);
+            if (SmBtn("+0.05")) ApplyItemScale(itemScale + 0.05f);
         });
     }
 
@@ -276,9 +277,10 @@ public class GameDebugWindow : EditorWindow
             GameDebug.SpeedMultiplier = speed;
     }
 
-    private void Apply(ref float val, float delta)
+    private void ApplyItemScale(float val)
     {
-        val = Mathf.Clamp(val + delta, 0.2f, 1.5f);
+        val = Mathf.Clamp(val, 0.2f, 1.5f);
+        GameDebug.ItemScale = val;
         _gm.DebugSetItemScale(val);
     }
 
