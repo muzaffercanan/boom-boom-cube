@@ -56,3 +56,7 @@ crashlytics-build.properties
 *.suo
 *.tmp
 *.mdb
+
+# Screenshots
+Assets/Screenshots/*.png
+Assets/Screenshots/*.png.meta
